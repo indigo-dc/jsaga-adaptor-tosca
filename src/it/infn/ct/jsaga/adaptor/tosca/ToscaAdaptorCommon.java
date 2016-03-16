@@ -62,9 +62,12 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   protected String sshHost = null;
   protected String user_cred = "";
   protected String ca_path = "";
+  protected static final String TYPE = "tosca";
   protected static final String AUTH = "auth";
   protected static final String RESOURCE = "compute";
   protected static final String ACTION = "create";
+  protected static final String USER_NAME = "user.name";
+  protected static final String TOKEN = "token";
   
   public static final String LS = System.getProperty("line.separator");
   private static final Logger log = 
@@ -81,8 +84,8 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   public Class[] getSupportedSecurityCredentialClasses() 
   {    
       return new Class[] {         
-	  ToscaSecurityCredential.class
-      };
+      	  ToscaSecurityCredential.class
+      };      
   }
 
   @Override
@@ -90,15 +93,14 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   {
       credential = (ToscaSecurityCredential)sc;
       
-      try {
-            // Place here WP5 token management ...
+      try {            
             log.debug("No security is necessary yet"  + LS 
                      +"User: '"+credential.getUserID()+"'"
                     );
             //user_cred = (String)credential.getProxy().getAttribute(Context.USERPROXY);
             //ca_path = (String)credential.getProxy().getCertRepository().getPath();
       //}  catch (NotImplementedException e) { 
-        //  log.debug("NotImplementedException: "+ LS + e.toString()); 
+      //    log.debug("NotImplementedException: "+ LS + e.toString()); 
       } catch (NoSuccessException e) { 
           log.debug("NoSuccessException: "+ LS + e.toString()); 
       } catch (Exception e) {
@@ -107,7 +109,7 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   }
   
   @Override
-  public String getType() { return "tosca"; }
+  public String getType() { return TYPE; }
 
   @Override
   public int getDefaultPort() { return toscaPort; }
@@ -130,10 +132,10 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   public Usage getUsage() 
   { 
     return new UAnd.Builder()
-                     //.and(new U(AUTH))
-                     //.and(new U(RESOURCE))
-                     //.and(new U(ACTION))
-                     .build();      
+            //.and(new U(AUTH))
+            .and(new U(RESOURCE))
+            .and(new U(ACTION))                        
+            .build();      
   }
 
   @Override
@@ -141,8 +143,8 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   {
     return new Default[] {
         //new Default (AUTH, "x509"),        
-        //new Default (RESOURCE, "compute"),
-        //new Default (ACTION, "create")
+        new Default (RESOURCE, "compute"),
+        new Default (ACTION, "create"),               
     };
   }
 }

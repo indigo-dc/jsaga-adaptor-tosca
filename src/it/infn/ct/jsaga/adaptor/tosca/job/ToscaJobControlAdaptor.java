@@ -113,7 +113,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
   //          new SSHJobControlAdaptor();
   
   //private String prefix = "";
-  //private String action = "";
+  private String action = "";
+  private String token = "";
+  
   //private String resource = "";  
   //private String auth = "";
   //private String attributes_title = "";
@@ -220,8 +222,12 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                   BadParameterException, 
                   TimeoutException, 
                   NoSuccessException 
-    {      
-        log.debug("connect" + LS + 
+    {                      
+       action = (String) attributes.get(ACTION);
+       token = (String) attributes.get(TOKEN);
+       
+       
+       log.debug("connect" + LS + 
                   "-------" + LS +
                   "userInfo  : '" + userInfo   + "'" + LS +
                   "host      : '" + host       + "'" + LS +
@@ -229,6 +235,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                   "basePath  : '" + basePath   + "'" + LS +
                   "attributes: '" + attributes + "'"
                  );
+       log.debug("action:"+action);
+       log.debug("token: "+token);
+       
        /*
        //List<String> results = new ArrayList();
         List<String> results = new ArrayList<String>();
@@ -238,7 +247,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
        
        prefix = (String) attributes.get(PREFIX);
        String resourceID = (String) attributes.get("resourceID");
-       action = (String) attributes.get(ACTION);
+       
        auth = (String) attributes.get(AUTH);
        resource = (String) attributes.get(RESOURCE);
        attributes_title = (String) attributes.get(ATTRIBUTES_TITLE);
@@ -528,6 +537,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                          NoSuccessException, 
                          BadResource 
     {
+       log.debug("action:"+action);
        /*
         String resourceID = "";
         String publicIP = "";
@@ -817,8 +827,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     {
         return new UAnd.Builder()
             .and(super.getUsage())
-            //.and(new U(ATTRIBUTES_TITLE))
-            //.and(new U(MIXIN_OS_TPL))
+            .and(new U(USER_NAME))
+            .and(new U(TOKEN))
             //.and(new U(MIXIN_RESOURCE_TPL))
             //.and(new UOptional(PREFIX))
             .build();

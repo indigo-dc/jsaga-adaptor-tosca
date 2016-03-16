@@ -87,6 +87,7 @@ public class RunTest
         Job job = null;
         String jobId = "";
         
+        
         try {
             session = SessionFactory.createSession(false);
             
@@ -94,18 +95,34 @@ public class RunTest
             //In this example the rocci A&A schema is used                        
             context = ContextFactory.createContext("tosca");
             
-            // Set ...
+            
+            //Set the public key for SSH connections
+            context.setAttribute(Context.USERCERT,
+                    System.getProperty("user.home") + 
+                    System.getProperty("file.separator") + 
+                    ".ssh/id_rsa.pub");
+            
+            //Set the private key for SSH connections
+            context.setAttribute(Context.USERKEY,
+                    System.getProperty("user.home") + 
+                    System.getProperty("file.separator") + 
+                    ".ssh/id_rsa");
+            
+            // Set the userID for SSH connections
+            context.setAttribute(Context.USERID, "root");
             //context.setAttribute("token","AABBCCDDEEFF00112233445566778899");
-            context.setAttribute("user.naame","brunor");
+            //context.setAttribute("user.name","brunor");
+            
+            session.addContext(context);
             
             try {    
                 log.info("Initialize the JobService context... ");
 
-                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments";
+                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?action=minkia";
                 URL serviceURL = URLFactory.createURL(ServiceURL);
-                log.info("serviceURL = " + serviceURL);            
+                log.info("serviceURL = " + serviceURL);  
+                
                 service = JobFactory.createJobService(session, serviceURL);  
-
                 JobDescription desc = JobFactory.createJobDescription();
                 desc.setAttribute(JobDescription.EXECUTABLE, "/bin/bash");                	           
                 desc.setAttribute(JobDescription.OUTPUT, "output.txt");

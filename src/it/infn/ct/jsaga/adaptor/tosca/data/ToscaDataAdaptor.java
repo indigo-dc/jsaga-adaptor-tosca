@@ -53,7 +53,7 @@ public class ToscaDataAdaptor extends SFTPDataAdaptor
 {
     
   @Override
-  public String getType() { return "tosca"; }
+  public String getType() { return TYPE; }
   
   @Override
   public Class[] getSupportedSecurityCredentialClasses() 
