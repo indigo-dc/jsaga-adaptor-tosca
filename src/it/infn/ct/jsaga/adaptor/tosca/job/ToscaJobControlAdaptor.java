@@ -41,6 +41,7 @@ import fr.in2p3.jsaga.adaptor.job.control.staging.StagingTransfer;
 import fr.in2p3.jsaga.adaptor.job.control.JobControlAdaptor;
 import fr.in2p3.jsaga.adaptor.job.monitor.JobMonitorAdaptor;
 import fr.in2p3.jsaga.adaptor.job.BadResource;
+import fr.in2p3.jsaga.adaptor.ssh3.job.SSHJobControlAdaptor;
 
 import java.util.logging.Level;
 import org.ogf.saga.error.NoSuccessException;
@@ -109,12 +110,12 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
   private ToscaJobMonitorAdaptor toscaJobMonitorAdaptor = 
             new ToscaJobMonitorAdaptor();
     
-  //private SSHJobControlAdaptor sshControlAdaptor = 
-  //          new SSHJobControlAdaptor();
+  private SSHJobControlAdaptor sshControlAdaptor = 
+            new SSHJobControlAdaptor();
   
   //private String prefix = "";
   private String action = "";
-  private String token = "";
+  private String tosca_template = "";
   
   //private String resource = "";  
   //private String auth = "";
@@ -222,23 +223,27 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                   BadParameterException, 
                   TimeoutException, 
                   NoSuccessException 
-    {                      
-       action = (String) attributes.get(ACTION);
-       token = (String) attributes.get(TOKEN);
-       
-       
-       log.debug("connect" + LS + 
-                  "-------" + LS +
+    {                                    
+       log.debug("[Connect]"                         + LS +                   
                   "userInfo  : '" + userInfo   + "'" + LS +
                   "host      : '" + host       + "'" + LS +
                   "port      : '" + port       + "'" + LS +
                   "basePath  : '" + basePath   + "'" + LS +
                   "attributes: '" + attributes + "'"
                  );
+       
+       action = (String) attributes.get(ACTION);
+       tosca_template = (String) attributes.get(TOSCA_TEMPLATE);
+       
+       
        log.debug("action:"+action);
-       log.debug("token: "+token);
+       log.debug("tosca_template: "+tosca_template);
+       
+       sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
        
        /*
+       
+       
        //List<String> results = new ArrayList();
         List<String> results = new ArrayList<String>();
                  
@@ -537,7 +542,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                          NoSuccessException, 
                          BadResource 
     {
-       log.debug("action:"+action);
+        log.debug("action:"+action);
+        log.debug("tosca_template:"+tosca_template);
        /*
         String resourceID = "";
         String publicIP = "";

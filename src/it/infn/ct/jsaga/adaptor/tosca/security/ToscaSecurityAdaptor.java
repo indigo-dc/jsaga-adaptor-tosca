@@ -85,8 +85,8 @@ public class ToscaSecurityAdaptor implements ExpirableSecurityAdaptor {
         SSHSecurityCredential sshCred
                 = (SSHSecurityCredential) new SSHSecurityAdaptor()
                 .createSecurityCredential(usage, attributes, contextId);
-
-        return new ToscaSecurityCredential(sshCred);
+        
+        return new ToscaSecurityCredential(sshCred,(String)attributes.get("token"));
     }
 
     @Override

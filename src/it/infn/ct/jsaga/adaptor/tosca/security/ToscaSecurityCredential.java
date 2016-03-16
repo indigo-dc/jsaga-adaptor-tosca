@@ -19,7 +19,7 @@
  * the License.
  *
  * @author <a href="mailto:riccardo.bruno@ct.infn.it">Riccardo Bruno</a>(INFN)
-***************************************************************************
+ * **************************************************************************
  */
 package it.infn.ct.jsaga.adaptor.tosca.security;
 
@@ -29,61 +29,14 @@ import java.io.PrintStream;
 import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.NotImplementedException;
 
-/*
- public class ToscaSecurityCredential implements SecurityCredential {
-    
- private static final Logger log =  Logger.getLogger(ToscaSecurityCredential.class);
- private static final String LS = System.getProperty("line.separator"); 
-
- private byte[] token = null;
- private String userName = null;
-
- public ToscaSecurityCredential(byte[] token, String userName) throws NoSuccessException {
- log.debug("ToscaSecurityCredential" 
- +LS+"-----------------------"
- +LS+"Token: '" + token + "'"
- +LS+"userName: '" + userName + "'" 
- );
- this.token=token;
- this.userName=userName;
- }
-
- public void dump(PrintStream out) throws Exception {
- log.debug("Dumping"                  + LS 
- +"-------"                  + LS 
- +"Token   : '"+token+"'"    + LS 
- +"UserName: '"+userName+"'" + LS  
- );
- // Dumping ...
- out.print("Token   : '"+token+"'");
- out.print("UserName: '"+userName+"'");
- }
-
- @Override
- public String getUserID() throws NoSuccessException {
- return userName;
- }
-
- @Override
- public String getAttribute(String key) throws NotImplementedException, NoSuccessException {
- log.debug("Key: '"+key+"', has value: '<not available>'");
- return "not available";
- }
-
- @Override
- public void close() throws Exception {
- log.debug("Close called");
- }
-
- }
- */
 public class ToscaSecurityCredential implements SecurityCredential {
 
     private SSHSecurityCredential m_sshCred;
-  //private VOMSSecurityCredential m_proxy;
+    private String token;
 
-    public ToscaSecurityCredential(SSHSecurityCredential s) {
+    public ToscaSecurityCredential(SSHSecurityCredential s, String token) {
         this.m_sshCred = s;
+        this.token = token;
     }
 
     public ToscaSecurityCredential() {
@@ -97,7 +50,12 @@ public class ToscaSecurityCredential implements SecurityCredential {
     @Override
     public String getAttribute(String key)
             throws NotImplementedException, NoSuccessException {
-        throw new NotImplementedException();
+        switch (key) {
+            case "token":
+                return token;
+            default:
+        }
+        return null;
     }
 
     @Override

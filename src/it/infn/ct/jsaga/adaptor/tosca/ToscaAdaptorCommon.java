@@ -60,14 +60,13 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   protected ToscaSecurityCredential credential = null;             
 
   protected String sshHost = null;
-  protected String user_cred = "";
-  protected String ca_path = "";
   protected static final String TYPE = "tosca";
   protected static final String AUTH = "auth";
   protected static final String RESOURCE = "compute";
   protected static final String ACTION = "create";
   protected static final String USER_NAME = "user.name";
   protected static final String TOKEN = "token";
+  protected static final String TOSCA_TEMPLATE = "tosca_template";
   
   public static final String LS = System.getProperty("line.separator");
   private static final Logger log = 
@@ -97,10 +96,9 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
             log.debug("No security is necessary yet"  + LS 
                      +"User: '"+credential.getUserID()+"'"
                     );
-            //user_cred = (String)credential.getProxy().getAttribute(Context.USERPROXY);
-            //ca_path = (String)credential.getProxy().getCertRepository().getPath();
-      //}  catch (NotImplementedException e) { 
-      //    log.debug("NotImplementedException: "+ LS + e.toString()); 
+            log.debug("TOKEN:"+sc.getAttribute("token"));                        
+      }  catch (NotImplementedException e) { 
+          log.debug("NotImplementedException: "+ LS + e.toString()); 
       } catch (NoSuccessException e) { 
           log.debug("NoSuccessException: "+ LS + e.toString()); 
       } catch (Exception e) {

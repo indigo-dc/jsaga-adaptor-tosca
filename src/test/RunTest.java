@@ -110,7 +110,7 @@ public class RunTest
             
             // Set the userID for SSH connections
             context.setAttribute(Context.USERID, "root");
-            //context.setAttribute("token","AABBCCDDEEFF00112233445566778899");
+            context.setAttribute("token","AABBCCDDEEFF00112233445566778899");
             //context.setAttribute("user.name","brunor");
             
             session.addContext(context);
@@ -118,7 +118,7 @@ public class RunTest
             try {    
                 log.info("Initialize the JobService context... ");
 
-                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?action=minkia";
+                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?tosca_template=/tmp/pippo.yaml";
                 URL serviceURL = URLFactory.createURL(ServiceURL);
                 log.info("serviceURL = " + serviceURL);  
                 
@@ -127,8 +127,27 @@ public class RunTest
                 desc.setAttribute(JobDescription.EXECUTABLE, "/bin/bash");                	           
                 desc.setAttribute(JobDescription.OUTPUT, "output.txt");
                 desc.setAttribute(JobDescription.ERROR, "error.txt");                  
-                desc.setVectorAttribute(JobDescription.ARGUMENTS,new String[]{"job-generic.sh"});                    
+                desc.setVectorAttribute(JobDescription.ARGUMENTS,new String[]{"job-generic.sh"}); 
+                desc.setVectorAttribute(desc.FILETRANSFER,
+                new String[]{
+                    System.getProperty("user.home") + 
+                    System.getProperty("file.separator") +
+                    "jsaga-adaptor-rocci" +
+                    System.getProperty("file.separator") +
+                    "job-generic.sh>job-generic.sh",
 
+                    System.getProperty("user.home") + 
+                    System.getProperty("file.separator") +
+                    "jsaga-adaptor-rocci" +
+                    System.getProperty("file.separator") +
+                    "output.txt<output.txt",
+
+                    System.getProperty("user.home") + 
+                    System.getProperty("file.separator") +
+                    "jsaga-adaptor-rocci" +
+                    System.getProperty("file.separator") +
+                    "error.txt<error.txt"}
+                );
                 job = service.createJob(desc);
                 job.run();                                
 
