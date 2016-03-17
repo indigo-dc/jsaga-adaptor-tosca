@@ -23,7 +23,6 @@
  * <http://www.apache.org/>.
  *
  */
-
 package it.infn.ct.jsaga.adaptor.tosca.job;
 
 import it.infn.ct.jsaga.adaptor.tosca.ToscaAdaptorCommon;
@@ -55,13 +54,23 @@ import org.ogf.saga.error.PermissionDeniedException;
 
 import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.text.SimpleDateFormat;
 
@@ -76,6 +85,9 @@ import java.util.regex.Matcher;
 import org.apache.log4j.Logger;
 
 import org.apache.commons.net.telnet.TelnetClient;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 /* *********************************************
  * *** Istituto Nazionale di Fisica Nucleare ***
@@ -88,50 +100,43 @@ import org.apache.commons.net.telnet.TelnetClient;
  * Ver.:    1.0.0
  * Date:    24 February 2016
  * *********************************************/
+public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
+        implements JobControlAdaptor,
+        StagingJobAdaptorTwoPhase,
+        CleanableJobAdaptor {
 
-public class ToscaJobControlAdaptor extends ToscaAdaptorCommon                                            
-                                    implements JobControlAdaptor, 
-                                               StagingJobAdaptorTwoPhase, 
-                                               CleanableJobAdaptor
-{     
-  protected String toscaId = "unset";
-    
-  //protected static final String ATTRIBUTES_TITLE = "attributes_title";
-  //protected static final String MIXIN_OS_TPL = "mixin_os_tpl";
-  //protected static final String MIXIN_RESOURCE_TPL = "mixin_resource_tpl";
-  //protected static final String PREFIX = "prefix";  
-    
-  // MAX tentatives before to gave up to connect the VM server.
-  //private final int MAX_CONNECTIONS = 10;
-  
-  private static final Logger log = 
-          Logger.getLogger(ToscaJobControlAdaptor.class);
-      
-  private ToscaJobMonitorAdaptor toscaJobMonitorAdaptor = 
-            new ToscaJobMonitorAdaptor();
-    
-  private SSHJobControlAdaptor sshControlAdaptor = 
-            new SSHJobControlAdaptor();
-  
-  //private String prefix = "";
-  private String action = "";
-  private String tosca_template = "";
-  
-  //private String resource = "";  
-  //private String auth = "";
-  //private String attributes_title = "";
-  //private String mixin_os_tpl = "";
-  //private String mixin_resource_tpl = "";  
-  //private String Endpoint = "";
-  
-  // Adding FedCloud Contextualisation options here
-  //private String context_user_data = "";  
-    
-  //enum ACTION_TYPE { list, delete, describe, create; }
-    
-  //String[] IP = new String[2];
-  
-  /*
+    protected String toscaId = "unset";
+
+    //protected static final String ATTRIBUTES_TITLE = "attributes_title";
+    //protected static final String MIXIN_OS_TPL = "mixin_os_tpl";
+    //protected static final String MIXIN_RESOURCE_TPL = "mixin_resource_tpl";
+    //protected static final String PREFIX = "prefix";  
+    // MAX tentatives before to gave up to connect the VM server.
+    //private final int MAX_CONNECTIONS = 10;
+    private static final Logger log
+            = Logger.getLogger(ToscaJobControlAdaptor.class);
+
+    private ToscaJobMonitorAdaptor toscaJobMonitorAdaptor
+            = new ToscaJobMonitorAdaptor();
+
+    private SSHJobControlAdaptor sshControlAdaptor
+            = new SSHJobControlAdaptor();
+
+    private String action = "";
+    private String tosca_template = "";
+
+    //private String resource = "";  
+    //private String auth = "";
+    //private String attributes_title = "";
+    //private String mixin_os_tpl = "";
+    //private String mixin_resource_tpl = "";  
+    private URL endpoint;
+
+    // Adding FedCloud Contextualisation options here
+    //private String context_user_data = "";  
+    //enum ACTION_TYPE { list, delete, describe, create; }
+    //String[] IP = new String[2];
+    /*
   public boolean testIpAddress(byte[] testAddress)
   {
     Inet4Address inet4Address;
@@ -146,9 +151,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     
     return result;
   }
-  */
-  
-  /*    
+     */
+ /*    
   private List<String> run_OCCI (String action_type, String action)            
   {
       String line;
@@ -212,180 +216,43 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         
         return list_rOCCI;
     }
-    */
-  
+     */
     @Override
-    public void connect (String userInfo, String host, int port, String basePath, Map attributes) 
-           throws NotImplementedException, 
-                  AuthenticationFailedException, 
-                  AuthorizationFailedException, 
-                  IncorrectURLException, 
-                  BadParameterException, 
-                  TimeoutException, 
-                  NoSuccessException 
-    {                                    
-       log.debug("[Connect]"                         + LS +                   
-                  "userInfo  : '" + userInfo   + "'" + LS +
-                  "host      : '" + host       + "'" + LS +
-                  "port      : '" + port       + "'" + LS +
-                  "basePath  : '" + basePath   + "'" + LS +
-                  "attributes: '" + attributes + "'"
-                 );
-       
-       action = (String) attributes.get(ACTION);
-       tosca_template = (String) attributes.get(TOSCA_TEMPLATE);
-       
-       
-       log.debug("action:"+action);
-       log.debug("tosca_template: "+tosca_template);
-       
-       sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
-       
-       /*
-       
-       
-       //List<String> results = new ArrayList();
-        List<String> results = new ArrayList<String>();
-                 
-       log.info("");
-       log.info("Trying to connect to the cloud host [ " + host + " ] ");
-       
-       prefix = (String) attributes.get(PREFIX);
-       String resourceID = (String) attributes.get("resourceID");
-       
-       auth = (String) attributes.get(AUTH);
-       resource = (String) attributes.get(RESOURCE);
-       attributes_title = (String) attributes.get(ATTRIBUTES_TITLE);
-       mixin_os_tpl = (String) attributes.get(MIXIN_OS_TPL);
-       mixin_resource_tpl = (String) attributes.get(MIXIN_RESOURCE_TPL);
-       
-       context_user_data = (String) attributes.get("user_data");
-       
-       // Check if OCCI path is set                
-       if ((prefix != null) && (new File((prefix)).exists()))
-            prefix += System.getProperty("file.separator");
-       else prefix = "";
-              
-       Endpoint = "https://" 
-                  + host + ":" + port 
-                  + System.getProperty("file.separator");
-       
-       log.info("");
-       log.info("See below the details: ");
-       log.info("");
-       log.info("PREFIX    = " + prefix);
-       log.info("ACTION    = " + action);
-       log.info("RESOURCE  = " + resource);
-       
-       log.info("");
-       log.info("AUTH       = " + auth);       
-       log.info("PROXY_PATH = " + user_cred);       
-       log.info("CA_PATH    = " + ca_path);
-       
-       log.info("");
-       log.info("HOST        = " + host);
-       log.info("PORT        = " + port);
-       log.info("ENDPOINT    = " + Endpoint);
-       log.info("PUBLIC KEY  = " + credential.getSSHCredential().getPublicKeyFile().getPath());
-       log.info("PRIVATE KEY = " + credential.getSSHCredential().getPrivateKeyFile().getPath());
-       
-       log.info("");
-       log.info("EGI FedCLoud Contextualisation options:");       
-       log.info("USER DATA  = " + context_user_data);
-       
-       log.info("");
-       if  (action.equals("list")) 
-       {
-            if (resource.equals("compute"))
-                log.info("Listing active OCCI computeID(s)");
-                
-            if (resource.equals("os_tpl"))
-                log.info("Listing of available VMs on the server... ");
-            
-            if (resource.equals("resource_tpl"))
-                log.info("Listing active OCCI flavours... ");                        
-                        
-            String Execute = prefix +
-                             "occi --endpoint " + Endpoint +
-                             " --action " + action +
-                             " --resource " + resource +
-                             " --auth " + auth +
-                             " --user-cred " + user_cred +
-                             " --voms --ca-path " + ca_path;
-                             //" --context user_data=" + context_user_data;
-            
-            log.info(Execute);
-            
-            try {
-                results = run_OCCI("list", Execute);
-                if (results.isEmpty())
-                    throw new NoSuccessException(
-                    "Some problems occurred while contacting the server. "
-                    + "Please check your settings.");                
-            } catch (Exception ex) { log.error(ex); }
-       } // end listing
-       
-       if  (action.equals("describe")) 
-       {           
-           log.info("Describing the OCCI computeID");
-           
-           if (resourceID.trim().length() > 0)
-                log.info("ResourceID = " + resourceID);
-                
-            String Execute = prefix +
-                             "occi --endpoint " + Endpoint +
-                             " --action " + action +
-                             " --resource " + resource +
-                             " --resource " + resourceID +
-                             " --auth " + auth +
-                             " --user-cred " + user_cred +
-                             " --voms --ca-path " + ca_path;
-                             //" --context user_data=" + context_user_data;
+    public void connect(String userInfo, String host, int port, String basePath, Map attributes)
+            throws NotImplementedException,
+            AuthenticationFailedException,
+            AuthorizationFailedException,
+            IncorrectURLException,
+            BadParameterException,
+            TimeoutException,
+            NoSuccessException {
+        log.debug("[Connect]" + LS
+                + "userInfo  : '" + userInfo + "'" + LS
+                + "host      : '" + host + "'" + LS
+                + "port      : '" + port + "'" + LS
+                + "basePath  : '" + basePath + "'" + LS
+                + "attributes: '" + attributes + "'"
+        );
 
-            log.info(Execute);        
+        action = (String) attributes.get(ACTION);
+        tosca_template = (String) attributes.get(TOSCA_TEMPLATE);
 
-            try {
-                results = run_OCCI("describe", Execute);
-                if (results.isEmpty())
-                    throw new NoSuccessException(
-                    "Some problems occurred while contacting the server. "
-                    + "Please check your settings.");                
-            } catch (Exception ex) { log.error(ex); }
-       } // end describing
-       
-       if  (action.equals("delete")) 
-       {           
-           log.info("Deleting the OCCI computeID");
-            
-           if (resourceID.trim().length() > 0)
-                log.info("ResourceID = " + resourceID);
+        try {
+            endpoint = new URL("http", host, port, basePath);
+        } catch (MalformedURLException ex) {
+            log.error("Error in the service end-point creation" + ex);
+        }
+        log.debug("action:" + action);
+        log.debug("tosca_template: " + tosca_template);
 
-           String Execute = prefix +
-                            "occi --endpoint " + Endpoint +
-                            " --action " + action +
-                            " --resource " + resource +
-                            " --resource " + resourceID +
-                            " --auth " + auth +
-                            " --user-cred " + user_cred +
-                            " --voms --ca-path " + ca_path;
-                            //" --context user_data=" + context_user_data;
-
-           log.info(Execute);           
-
-           try {
-                results = run_OCCI("delete", Execute);                
-           } catch (Exception ex) { log.error(ex); }
-        } // end deleting 
-       
         sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
-        */
     }
-            
+
     @Override
-    public void start(String nativeJobId) throws PermissionDeniedException, 
-                                                 TimeoutException, 
-                                                 NoSuccessException 
-    {   /*
+    public void start(String nativeJobId) throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException {
+        /*
         String _publicIP = 
                 nativeJobId.substring(nativeJobId.indexOf("@")+1, 
                                       nativeJobId.indexOf("#"));
@@ -400,19 +267,19 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         //  catch (AuthenticationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (AuthorizationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (BadParameterException ex) { throw new NoSuccessException(ex); }
-        */
+         */
     }
-    
+
     @Override
-    public void cancel(String nativeJobId) throws PermissionDeniedException, 
-                                                  TimeoutException, 
-                                                  NoSuccessException 
-    {   
-        String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@")+1, 
-                                                 nativeJobId.indexOf("#"));
-        
+    public void cancel(String nativeJobId) throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException {
+        log.debug("NativeJobId: " + nativeJobId);
+        String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@") + 1,
+                nativeJobId.indexOf("#"));
+
         String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
-        
+
         //try {                        
         //    sshControlAdaptor.connect(null, _publicIP, 22, null, new HashMap());            
         //    sshControlAdaptor.cancel(_nativeJobId);
@@ -420,15 +287,13 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         //  catch (AuthenticationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (AuthorizationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (BadParameterException ex) { throw new NoSuccessException(ex); }
-        
-        log.info("Calling the cancel() method");        
+        log.info("Calling the cancel() method");
     }
-    
+
     @Override
-    public void clean (String nativeJobId) throws PermissionDeniedException, 
-                                                  TimeoutException, 
-                                                  NoSuccessException 
-    {    
+    public void clean(String nativeJobId) throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException {
         //List<String> results = new ArrayList();
         /*
         List<String> results = new ArrayList<String>();
@@ -453,7 +318,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         log.info("Stopping the VM [ " + _publicIP + " ] in progress...");
                 
         log.info(Execute);        
-        */
+         */
         //try {            
         //    sshControlAdaptor.connect(null, _publicIP, 22, null, new HashMap());            
         //    sshControlAdaptor.clean(_nativeJobId);
@@ -466,7 +331,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         //  catch (AuthorizationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (BadParameterException ex) { throw new NoSuccessException(ex); }
     }
-    
+
     /*
     public String getIP (List<String> results)
     {
@@ -526,196 +391,206 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         
         return publicIP;
     }
-    */
-      
-    /*
+     */
+ /*
     public boolean isNullOrEmpty(String myString)
     {
          return myString == null || "".equals(myString);
     }
-    */
+     */
     
+    private String getTOSCAStatus(String json) throws ParseException {
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = (JSONObject) parser.parse(json);
+        
+        return (String) jsonObject.get("status");
+    }
+    
+    private String getTOSCASUUID(String json) throws ParseException {
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = (JSONObject) parser.parse(json);
+        
+        return (String) jsonObject.get("uuid");
+    }
+
     @Override
-    public String submit (String jobDesc, boolean checkMatch, String uniqId) 
-                  throws PermissionDeniedException, 
-                         TimeoutException, 
-                         NoSuccessException, 
-                         BadResource 
-    {
-        log.debug("action:"+action);
-        log.debug("tosca_template:"+tosca_template);
-       /*
+    public String submit(String jobDesc, boolean checkMatch, String uniqId)
+            throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException,
+            BadResource {
+        log.debug("action:" + action);
+        log.debug("tosca_template:" + tosca_template);
         String resourceID = "";
         String publicIP = "";
         String result = "";
-        
+
         //List<String> results = new ArrayList();
         List<String> results = new ArrayList<String>();
-                        
-        if (action.equals("create")) {
-                
-                log.info("Creating a new OCCI computeID. Please wait! ");
-                
-                if (attributes_title.trim().length() > 0)
-                    log.info("VM Title     = " + attributes_title);
-                    
-                if (mixin_os_tpl.trim().length() > 0)
-                    log.info("OS           = " + mixin_os_tpl);
-                    
-                if (mixin_resource_tpl.trim().length() > 0)
-                    log.info("Flavour      = " + mixin_resource_tpl);
-                    
-                String Execute = "";
-                if(context_user_data != null && !context_user_data.isEmpty())
-                    Execute = prefix +
-                          "occi --endpoint " + Endpoint +                                 
-                          " --action " + "create" +
-                          " --resource " + resource +
-                          " --attribute occi.core.title=" + attributes_title +
-                          " --mixin os_tpl#" + mixin_os_tpl +
-                          " --mixin resource_tpl#" + mixin_resource_tpl +
-                          " --auth " + auth +
-                          " --user-cred " + user_cred +
-                          " --voms --ca-path " + ca_path +
-                          " --context user_data=\"" + context_user_data + "\"";
-                else
-                    Execute = prefix +
-                          "occi --endpoint " + Endpoint +                                 
-                          " --action " + "create" +
-                          " --resource " + resource +
-                          " --attribute occi.core.title=" + attributes_title +
-                          " --mixin os_tpl#" + mixin_os_tpl +
-                          " --mixin resource_tpl#" + mixin_resource_tpl +
-                          " --auth " + auth +
-                          " --user-cred " + user_cred +
-                          " --voms --ca-path " + ca_path;
-                
-                log.info("");
-                log.info(Execute);
-                 
-                //try {                        
-                results = run_OCCI("create", Execute); 
-                if (results.isEmpty()) 
-                    throw new NoSuccessException(
-                        "Some problems occurred while executing the action create. "
-                        + "Please check your settings.");                                                                        
-                //} catch (Exception ex) { log.error("ERROR=" + ex); }
-                
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
+
+//        if (action.equals("create")) {
+
+            log.info("Creating a new TOSCA Infra. Please wait! ");
+
+            StringBuilder postData = new StringBuilder();
+            postData.append("{ \"template\": \"");
+            try {
+                postData.append(new String(Files.readAllBytes(Paths.get(tosca_template))).replace("\n", "\\n"));
+            } catch (IOException ex) {
+                log.error("Template is not readable!");
+            }
+            postData.append("\"  }");
+
+            log.debug("JSON Data sent to the orchestrator: \n" + postData);
+            HttpURLConnection conn;
+        try {
+            conn = (HttpURLConnection) endpoint.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("charset", "utf-8");
+            conn.setDoOutput(true);
+            OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+            wr.write(postData.toString());
+            wr.flush();
+            wr.close();
+            log.debug("Orchestrator status code: " + conn.getResponseCode());
+            log.debug("Orchestrator status message: " + conn.getResponseMessage());
+            if (conn.getResponseCode() == 201) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String ln;
+                while ((ln = br.readLine()) != null) {
+                    sb.append(ln);
                 }
-                                                   
-                // Getting info about the VM
-                if (results.size()>0) 
-                {                    
-                    resourceID = results.get(0);                                        
-                    
-                    int k=0;
-                    boolean check = false;
-                    
-                    try {
-                            while (!check) {
-                            log.info("");
-                            log.info("See below the details of the VM ");
-                            log.info("[ " + resourceID + " ]");
-                            log.info("");
-                            
-                            Execute = prefix +
-                                    "occi --endpoint " + Endpoint +
-                                    " --action " + "describe" +
-                                    " --resource " + resource +
-                                    " --resource " + resourceID +
-                                    " --auth " + auth +
-                                    " --user-cred " + user_cred +
-                                    " --voms --ca-path " + ca_path +
-                                    //" --context user_data=" + context_user_data +                                    
-                                    " --output-format json_extended_pretty";
-                            
-                            log.info(Execute);
-                           
-                            results = run_OCCI("describe", Execute);
-                            
-                            publicIP = getIP (results);
-                            if (!isNullOrEmpty(publicIP)) check=true;                         
-                            } // end while
-                    } catch (Exception ex) { log.error(ex); }                                                          
-                   
-                    //sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
-                    log.info("");
-                    log.info("Starting VM [ " + publicIP + " ] in progress...");
-                                        
-                    Date date = new Date();
-                    SimpleDateFormat ft = 
-                       new SimpleDateFormat ("E yyyy.MM.dd 'at' hh:mm:ss a zzz");
-           
-                    log.info("");
-                    log.info("Waiting the remote VM finishes the boot! Sleeping for a while... ");
-                    log.info(ft.format(date));
-                                                       
-                    byte[] buff = new byte[1024];
-                    int ret_read = 0;
-                    boolean flag = true;                                        
-                    int MAX = 0;
-                    
-                    TelnetClient tc = null;
-                    
-                    while ((flag) && (MAX < MAX_CONNECTIONS))
-                    {                        
-                        try
-                        {
-                            tc = new TelnetClient();
-                            tc.connect(publicIP, 22);
-                            InputStream instr = tc.getInputStream();
-                                                    
-                            ret_read = instr.read(buff);                            
-                            if (ret_read > 0)
-                            {
-                                log.info("[ SUCCESS ] ");
-                                tc.disconnect();
-                                flag=false;
-                            }
-                        } catch (IOException e) {
-                            
-                            try {                                
-                                Thread.sleep(60000);
-                            } catch (InterruptedException ex) { }
-                            
-                            MAX++;
+                log.debug("Orchestrator result: " + sb);
+                String uuid = getTOSCASUUID(sb.toString());
+                String status = getTOSCAStatus(sb.toString());
+            }
+        } catch (IOException ex) {
+            log.error("Connection error with the service at " + endpoint.toString());
+            log.error(ex);
+        } catch (ParseException ex) {
+            log.error("Orchestrator response not parsable");
+        }
+            
+/*
+
+            log.info("");
+
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+            }
+
+            // Getting info about the VM
+            if (results.size() > 0) {
+                resourceID = results.get(0);
+
+                int k = 0;
+                boolean check = false;
+
+                try {
+                    while (!check) {
+                        log.info("");
+                        log.info("See below the details of the VM ");
+                        log.info("[ " + resourceID + " ]");
+                        log.info("");
+
+                        Execute = prefix
+                                + "occi --endpoint " + Endpoint
+                                + " --action " + "describe"
+                                + " --resource " + resource
+                                + " --resource " + resourceID
+                                + " --auth " + auth
+                                + " --user-cred " + user_cred
+                                + " --voms --ca-path " + ca_path
+                                + //" --context user_data=" + context_user_data +                                    
+                                " --output-format json_extended_pretty";
+
+                        log.info(Execute);
+
+                        results = run_OCCI("describe", Execute);
+
+                        publicIP = getIP(results);
+                        if (!isNullOrEmpty(publicIP)) {
+                            check = true;
                         }
+                    } // end while
+                } catch (Exception ex) {
+                    log.error(ex);
+                }
+
+                //sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
+                log.info("");
+                log.info("Starting VM [ " + publicIP + " ] in progress...");
+
+                Date date = new Date();
+                SimpleDateFormat ft
+                        = new SimpleDateFormat("E yyyy.MM.dd 'at' hh:mm:ss a zzz");
+
+                log.info("");
+                log.info("Waiting the remote VM finishes the boot! Sleeping for a while... ");
+                log.info(ft.format(date));
+
+                byte[] buff = new byte[1024];
+                int ret_read = 0;
+                boolean flag = true;
+                int MAX = 0;
+
+                TelnetClient tc = null;
+
+                while ((flag) && (MAX < MAX_CONNECTIONS)) {
+                    try {
+                        tc = new TelnetClient();
+                        tc.connect(publicIP, 22);
+                        InputStream instr = tc.getInputStream();
+
+                        ret_read = instr.read(buff);
+                        if (ret_read > 0) {
+                            log.info("[ SUCCESS ] ");
+                            tc.disconnect();
+                            flag = false;
+                        }
+                    } catch (IOException e) {
+
+                        try {
+                            Thread.sleep(60000);
+                        } catch (InterruptedException ex) {
+                        }
+
+                        MAX++;
                     }
-               
-                    date = new Date();
-                    log.info(ft.format(date));
-                    
-                    toscaJobMonitorAdaptor.setSSHHost(publicIP);
-        
-                    //try {            
-                    //    sshControlAdaptor.connect(null, publicIP, 22, null, new HashMap());            
-                    //} catch (NotImplementedException ex) { throw new NoSuccessException(ex); } 
-                    //  catch (AuthenticationFailedException ex) { throw new PermissionDeniedException(ex); } 
-                    //  catch (AuthorizationFailedException ex) { throw new PermissionDeniedException(ex); } 
-                    //  catch (BadParameterException ex) { throw new NoSuccessException(ex); }
-                
-                    //result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId) 
-                    //    + "@" + publicIP + "#" + resourceID;
-                }           
-            } // end creating
-        
+                }
+
+                date = new Date();
+                log.info(ft.format(date));
+
+                toscaJobMonitorAdaptor.setSSHHost(publicIP);
+
+                //try {            
+                //    sshControlAdaptor.connect(null, publicIP, 22, null, new HashMap());            
+                //} catch (NotImplementedException ex) { throw new NoSuccessException(ex); } 
+                //  catch (AuthenticationFailedException ex) { throw new PermissionDeniedException(ex); } 
+                //  catch (AuthorizationFailedException ex) { throw new PermissionDeniedException(ex); } 
+                //  catch (BadParameterException ex) { throw new NoSuccessException(ex); }
+                //result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId) 
+                //    + "@" + publicIP + "#" + resourceID;
+            }
+        } // end creating
+
         //else return null;
         return result;
-        */
-        return "OK";
+*/
+ return "OK";
     }
-    
+
     @Override
-    public StagingTransfer[] getInputStagingTransfer(String nativeJobId) 
-                             throws PermissionDeniedException, 
-                                    TimeoutException, 
-                                    NoSuccessException 
-    {           
+    public StagingTransfer[] getInputStagingTransfer(String nativeJobId)
+            throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException {
         StagingTransfer[] result = null;
         /*
         String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@")+1, 
@@ -735,17 +610,16 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         //     
         // change URL sftp:// tp rocci://        
         return sftp2rocci(result);        
-        */
+         */
         return result;
     }
-    
+
     @Override
-    public StagingTransfer[] getOutputStagingTransfer(String nativeJobId) 
-                             throws PermissionDeniedException, 
-                                    TimeoutException, 
-                                    NoSuccessException 
-    {
-        
+    public StagingTransfer[] getOutputStagingTransfer(String nativeJobId)
+            throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException {
+
         StagingTransfer[] result = null;
         /*
         String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@")+1, 
@@ -763,7 +637,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                         
         // change URL sftp:// tp rocci://
         return sftp2rocci(result);
-        */
+         */
         return result;
     }
 
@@ -786,14 +660,12 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         
         return newTransfers;
     }
-    */
-    
+     */
     @Override
-    public String getStagingDirectory(String nativeJobId) 
-                  throws PermissionDeniedException, 
-                         TimeoutException, 
-                         NoSuccessException 
-    {               
+    public String getStagingDirectory(String nativeJobId)
+            throws PermissionDeniedException,
+            TimeoutException,
+            NoSuccessException {
         String result = null;
         /*
         String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@")+1, 
@@ -808,35 +680,32 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         //  catch (AuthenticationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (AuthorizationFailedException ex) { throw new PermissionDeniedException(ex); } 
         //  catch (BadParameterException ex) { throw new NoSuccessException(ex); }
-        */        
+         */
         return result;
     }
-    
+
     @Override
-    public JobMonitorAdaptor getDefaultJobMonitor() 
-    {        
+    public JobMonitorAdaptor getDefaultJobMonitor() {
         return toscaJobMonitorAdaptor;
     }
-    
-    
+
     protected String getJobDescriptionTranslatorFilename() throws NoSuccessException {
-      	return "xsl/job/bes-jsdl.xsl";     
+        return "xsl/job/bes-jsdl.xsl";
     }
-    
+
     @Override
     public JobDescriptionTranslator getJobDescriptionTranslator() throws NoSuccessException {
-      	return new JobDescriptionTranslatorXSLT(getJobDescriptionTranslatorFilename());
+        return new JobDescriptionTranslatorXSLT(getJobDescriptionTranslatorFilename());
     }
-    
+
     @Override
-    public Usage getUsage()
-    {
+    public Usage getUsage() {
         return new UAnd.Builder()
-            .and(super.getUsage())
-            .and(new U(USER_NAME))
-            .and(new U(TOKEN))
-            //.and(new U(MIXIN_RESOURCE_TPL))
-            //.and(new UOptional(PREFIX))
-            .build();
-    }  
+                .and(super.getUsage())
+                .and(new U(USER_NAME))
+                .and(new U(TOKEN))
+                //.and(new U(MIXIN_RESOURCE_TPL))
+                //.and(new UOptional(PREFIX))
+                .build();
+    }
 }

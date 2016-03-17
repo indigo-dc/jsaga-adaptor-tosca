@@ -120,7 +120,7 @@ public class RunTest
 
                 ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?tosca_template=/tmp/pippo.yaml";
                 URL serviceURL = URLFactory.createURL(ServiceURL);
-                log.info("serviceURL = " + serviceURL);  
+                log.info("serviceURL = " + serviceURL);
                 
                 service = JobFactory.createJobService(session, serviceURL);  
                 JobDescription desc = JobFactory.createJobDescription();
