@@ -211,21 +211,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             throw new NoSuccessException(ex);
         }
         log.debug("cancel (end)");
-    }
-    
-    private String getTOSCAStatus(String json) throws ParseException {
-        JSONParser parser = new JSONParser();
-        JSONObject jsonObject = (JSONObject) parser.parse(json);
-        
-        return (String) jsonObject.get("status");
-    }
-    
-    private String getTOSCASUUID(String json) throws ParseException {
-        JSONParser parser = new JSONParser();
-        JSONObject jsonObject = (JSONObject) parser.parse(json);
-        
-        return (String) jsonObject.get("uuid");
-    }
+    }        
 
     @Override
     public void clean(String nativeJobId) throws PermissionDeniedException,
@@ -281,9 +267,55 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         return info;
     }
     
-    private String[] submitTosca() {    
-        String [] results = null;
+    private String getTOSCAStatus(String json) throws ParseException {
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = (JSONObject) parser.parse(json);
         
+        return (String) jsonObject.get("status");
+    }
+    
+    private String getTOSCASUUID(String json) throws ParseException {
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = (JSONObject) parser.parse(json);
+        
+        return (String) jsonObject.get("uuid");
+    }
+    
+    private String getToscaDeployment(String toscaUUID) {    
+        String [] results = null;
+        StringBuilder deployment = new StringBuilder();
+        StringBuilder postData = new StringBuilder();        
+        HttpURLConnection conn;
+        try {
+            conn = (HttpURLConnection) endpoint.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("charset", "utf-8");
+            conn.setDoOutput(true);
+            OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+            wr.write(postData.toString());
+            wr.flush();
+            wr.close();
+            log.debug("Orchestrator status code: " + conn.getResponseCode());
+            log.debug("Orchestrator status message: " + conn.getResponseMessage());
+            if (conn.getResponseCode() == 201) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));                
+                String ln;
+                while ((ln = br.readLine()) != null) {
+                    deployment.append(ln);
+                }
+                log.debug("Orchestrator result: " + deployment);
+            }
+        } catch (IOException ex) {
+            log.error("Connection error with the service at " + endpoint.toString());
+            log.error(ex);        
+        }
+        return deployment.toString();
+    }
+    
+    private String submitTosca() {
+        String uuid = null;
+        String status = null;
         StringBuilder postData = new StringBuilder();
         postData.append("{ \"template\": \"");
         try {
@@ -315,8 +347,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                     sb.append(ln);
                 }
                 log.debug("Orchestrator result: " + sb);
-                String uuid = getTOSCASUUID(sb.toString());
-                String status = getTOSCAStatus(sb.toString());
+                uuid = getTOSCASUUID(sb.toString());
+                status = getTOSCAStatus(sb.toString());
             }
         } catch (IOException ex) {
             log.error("Connection error with the service at " + endpoint.toString());
@@ -325,7 +357,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             log.error("Orchestrator response not parsable");
         }
         
-        return results;
+        return uuid;
     }
         
     @Override
@@ -349,7 +381,45 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             // Create Tosca resource form tosca_template, then wait
             // for its creation and determine an access point with SSH:
             // IP/Port and credentials (username, PublicKey and PrivateKey)
-            // String[] ToscaResults = submitTosca(tosca_template,...
+            String toscaUUID = submitTosca();
+            
+            // Now waits until the resource is available
+            // A maximum number of attempts will be done
+            // until the resource will be made available
+            int attempts = 0;
+            int max_attempts = 10;
+            int wait_step= 30000;
+            for(attempts=0;
+                attempts < max_attempts-1;
+                attempts++) {
+                String toscaStatus = getToscaDeployment(toscaUUID);
+                switch(toscaStatus) {
+                    case "CREATE_COMPLETE":
+                        log.debug("Creation of the resource '"+toscaUUID+"' completed");
+                        break;
+                    case "CREATE_FAILED":
+                        log.error("Error while createing resource '"+toscaUUID+"'");
+                        throw new NoSuccessException("Error while createing resource '"+toscaUUID+"'");                        
+                    case "CREATE_IN_PROGRESS" :
+                        log.info("Waiting for resource making available ("+wait_step+") ms ...");
+                    default:
+                        log.warn("Unhespected status '"+toscaStatus+"'");
+                }
+                // Each iteration waits for a wait_step number of milliseconds
+                try {
+                    Thread.sleep(wait_step);
+                } catch (InterruptedException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                }
+            }
+            if(attempts >= max_attempts) {
+                log.error("Reached the maximum number of attempts ("+attempts+")");
+                // Free the resource?
+                // toscaDelete(toscaUUID);
+                throw new NoSuccessException("Reached the maximum number of attempts ("+attempts+")");                        
+            }
+            
             // Once tosca resource is ready, submit to SSH
             // String publicIP = ToscaResults[0];
             // String sshPort = toscaResults[1];            
@@ -367,7 +437,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                 throw new NoSuccessException(ex);
             }
             result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
-                    + "@" + publicIP + ":" + sshPort + "#" + "<tosca_res_id>";
+                    + "@" + publicIP + ":" + sshPort + "#" + toscaUUID;
         } else {
             log.warn("Unsupported action: '" + action + "' in submit");
         }
@@ -506,7 +576,6 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     public JobMonitorAdaptor getDefaultJobMonitor() {
         return toscaJobMonitorAdaptor;
     }
-
 
     @Override
     public JobDescriptionTranslator getJobDescriptionTranslator()
