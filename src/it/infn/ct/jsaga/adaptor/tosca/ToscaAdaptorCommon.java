@@ -59,8 +59,7 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
 
   protected ToscaSecurityCredential credential = null;             
 
-  protected String sshHost = null;
-  protected static final String TYPE = "tosca";
+  protected String sshHost = null;  
   protected static final String AUTH = "auth";
   protected static final String RESOURCE = "compute";
   protected static final String ACTION = "create";
@@ -107,7 +106,7 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   }
   
   @Override
-  public String getType() { return TYPE; }
+  public String getType() { return "tosca"; }
 
   @Override
   public int getDefaultPort() { return toscaPort; }

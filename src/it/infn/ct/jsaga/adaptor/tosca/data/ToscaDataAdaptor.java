@@ -23,80 +23,74 @@
  * <http://www.apache.org/>.
  *
  */
-
 package it.infn.ct.jsaga.adaptor.tosca.data;
 
 import fr.in2p3.jsaga.adaptor.ssh3.data.SFTPDataAdaptor;
 import it.infn.ct.jsaga.adaptor.tosca.security.ToscaSecurityCredential;
-
-import java.util.Map;
-
 import org.ogf.saga.error.AuthenticationFailedException;
 import org.ogf.saga.error.AuthorizationFailedException;
 import org.ogf.saga.error.BadParameterException;
 import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.NotImplementedException;
 import org.ogf.saga.error.TimeoutException;
-
 import ch.ethz.ssh2.Connection;
+import java.util.Map;
 
 /* ***************************************************
-* *** Centre de Calcul de l'IN2P3 - Lyon (France) ***
-* ***             http://cc.in2p3.fr/             ***
-* ***************************************************
-* File:   ToscaDataAdaptor
-* Author: Lionel Schwarz (lionel.schwarz@in2p3.fr)
-* Date:   22 oct 2013
-* ***************************************************/
+ * *** Centre de Calcul de l'IN2P3 - Lyon (France) ***
+ * ***             http://cc.in2p3.fr/             ***
+ * ***************************************************
+ * File:   ToscaDataAdaptor
+ * Author: Lionel Schwarz (lionel.schwarz@in2p3.fr)
+ * Date:   22 oct 2013
+ * ***************************************************/
+public class ToscaDataAdaptor extends SFTPDataAdaptor {
 
-public class ToscaDataAdaptor extends SFTPDataAdaptor 
-{
-    
-  @Override
-  public String getType() { return TYPE; }
-  
-  @Override
-  public Class[] getSupportedSecurityCredentialClasses() 
-  {
-        return new Class[]{ ToscaSecurityCredential.class };
-  }
+    @Override
+    public String getType() {
+        return "tosca";
+    }
 
-  @Override
-  public void connect(String userInfo, String host, 
-                      int port, String basePath, Map attributes)
-                throws NotImplementedException, AuthenticationFailedException, 
-                       AuthorizationFailedException, BadParameterException, 
-                       TimeoutException, NoSuccessException 
-  {/*
-	try {
-        	m_conn = new Connection(host, port);
-                m_conn.connect(null);
-                
-                String userId = ((ToscaSecurityCredential) credential)
-                        .getSSHCredential()
-                        .getUserId();
-                
-                String passPhrase = ((ToscaSecurityCredential) credential)
-                        .getSSHCredential()
-                        .getUserPass();
-                
-                // clone private key because the object will be reset
-                byte[] privateKey = ((ToscaSecurityCredential) credential)
-                        .getSSHCredential()
-                        .getPrivateKey()
-                        .clone();
-                
-                char[] pemPrivateKey = new String(privateKey).toCharArray();
-                if (!m_conn.authenticateWithPublicKey(userId, pemPrivateKey, passPhrase)) 
-		{
-                        m_conn.close();
-                        throw new AuthenticationFailedException("Auth fail");
-                }
+    @Override
+    public Class[] getSupportedSecurityCredentialClasses() {
+        return new Class[]{ToscaSecurityCredential.class};
+    }
+
+    @Override
+    public void connect(String userInfo, String host,
+            int port, String basePath, Map attributes)
+            throws NotImplementedException, AuthenticationFailedException,
+            AuthorizationFailedException, BadParameterException,
+            TimeoutException, NoSuccessException {
+        try {
+            m_conn = new Connection(host, port);
+            m_conn.connect(null);
+
+            String userId = ((ToscaSecurityCredential) credential)
+                    .getSSHCredential()
+                    .getUserId();
+
+            String passPhrase = ((ToscaSecurityCredential) credential)
+                    .getSSHCredential()
+                    .getUserPass();
+
+            // clone private key because the object will be reset
+            byte[] privateKey = ((ToscaSecurityCredential) credential)
+                    .getSSHCredential()
+                    .getPrivateKey()
+                    .clone();
+
+            char[] pemPrivateKey = new String(privateKey).toCharArray();
+            if (!m_conn.authenticateWithPublicKey(userId, pemPrivateKey, passPhrase)) {
+                m_conn.close();
+                throw new AuthenticationFailedException("Auth fail");
+            }
         } catch (Exception e) {
             m_conn.close();
-	    if ("Auth fail".equals(e.getMessage()))
-            throw new AuthenticationFailedException(e);
+            if ("Auth fail".equals(e.getMessage())) {
+                throw new AuthenticationFailedException(e);
+            }
             throw new NoSuccessException("Unable to connect to server", e);
         }
-  */}  
+    }
 }

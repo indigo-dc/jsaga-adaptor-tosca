@@ -28,33 +28,25 @@ package test;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.ogf.saga.context.Context;
 import org.ogf.saga.context.ContextFactory;
-
 import org.ogf.saga.error.NotImplementedException;
 import org.ogf.saga.error.IncorrectStateException;
 import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.PermissionDeniedException;
 import org.ogf.saga.error.SagaException;
-
 import org.ogf.saga.session.Session;
 import org.ogf.saga.session.SessionFactory;
-
 import org.ogf.saga.job.JobDescription;
 import org.ogf.saga.job.JobService;
 import org.ogf.saga.job.JobFactory;
 import org.ogf.saga.job.Job;
-
 import org.ogf.saga.task.State;
-
 import org.ogf.saga.url.URL;
 import org.ogf.saga.url.URLFactory;
-
 import fr.in2p3.jsaga.impl.job.instance.JobImpl;
 import fr.in2p3.jsaga.impl.job.service.JobServiceImpl;
 import org.apache.log4j.Level;
-
 import org.apache.log4j.Logger;
 
 /* *********************************************
@@ -62,9 +54,11 @@ import org.apache.log4j.Logger;
  * ***      Sezione di Catania (Italy)       ***
  * ***        http://www.ct.infn.it/         ***
  * *********************************************
- * File:    rOCCIJobControlAdaptor.java
+ * File:    ToscaJobControlAdaptor.java
   * Authors: Giuseppe LA ROCCA, Riccardo BRUNO
- * Email:   <giuseppe.larocca, riccardo.bruno>@ct.infn.it
+ * Email:   <giuseppe.larocca
+ *          ,riccardo.bruno
+ *          ,marco.fargetta>@ct.infn.it
  * Ver.:    1.0.0
  * Date:    24 February 2016
  * *********************************************/
@@ -97,58 +91,53 @@ public class RunTest
             
             
             //Set the public key for SSH connections
-            context.setAttribute(Context.USERCERT,
-                    System.getProperty("user.home") + 
+            String userCert=System.getProperty("user.home") + 
                     System.getProperty("file.separator") + 
-                    ".ssh/id_rsa.pub");
+                    ".ssh/id_rsa.pub";
+            log.debug("userCert: "+userCert);
+            context.setAttribute(Context.USERCERT,userCert);
             
             //Set the private key for SSH connections
-            context.setAttribute(Context.USERKEY,
-                    System.getProperty("user.home") + 
+            String userKey=System.getProperty("user.home") + 
                     System.getProperty("file.separator") + 
-                    ".ssh/id_rsa");
+                    ".ssh/id_rsa";
+            log.debug("userKey: "+userKey);
+            context.setAttribute(Context.USERKEY,
+                    userKey);
             
             // Set the userID for SSH connections
-            context.setAttribute(Context.USERID, "root");
-            context.setAttribute("token","AABBCCDDEEFF00112233445566778899");
-            //context.setAttribute("user.name","brunor");
+            context.setAttribute(Context.USERID, "Macbook");
+            
+            // for Tosca maybe in the future
+            context.setAttribute("token","AABBCCDDEEFF00112233445566778899");            
             
             session.addContext(context);
             
             try {    
                 log.info("Initialize the JobService context... ");
 
-                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?tosca_template=/tmp/pippo.yaml";
+                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?tosca_template=/tmp/tosca_template.yaml";
                 URL serviceURL = URLFactory.createURL(ServiceURL);
                 log.info("serviceURL = " + serviceURL);
                 
                 service = JobFactory.createJobService(session, serviceURL);  
                 JobDescription desc = JobFactory.createJobDescription();
+                log.info("Attributes ...");
                 desc.setAttribute(JobDescription.EXECUTABLE, "/bin/bash");                	           
                 desc.setAttribute(JobDescription.OUTPUT, "output.txt");
                 desc.setAttribute(JobDescription.ERROR, "error.txt");                  
-                desc.setVectorAttribute(JobDescription.ARGUMENTS,new String[]{"job-generic.sh"}); 
+                log.info("VectorAttributes ...");
+                desc.setVectorAttribute(JobDescription.ARGUMENTS,new String[]{"-c hostname -f"}); 
                 desc.setVectorAttribute(desc.FILETRANSFER,
-                new String[]{
-                    System.getProperty("user.home") + 
-                    System.getProperty("file.separator") +
-                    "jsaga-adaptor-rocci" +
-                    System.getProperty("file.separator") +
-                    "job-generic.sh>job-generic.sh",
-
-                    System.getProperty("user.home") + 
-                    System.getProperty("file.separator") +
-                    "jsaga-adaptor-rocci" +
-                    System.getProperty("file.separator") +
-                    "output.txt<output.txt",
-
-                    System.getProperty("user.home") + 
-                    System.getProperty("file.separator") +
-                    "jsaga-adaptor-rocci" +
-                    System.getProperty("file.separator") +
-                    "error.txt<error.txt"}
+                    new String[]{
+                        "/tmp/tosca_template.yaml>tosca_template.yaml"                     
+                       ,"/tmp/output.txt<output.txt"
+                       ,"/tmp/error<error.txt"
+                    }                   
                 );
+                log.info("Create job ...");
                 job = service.createJob(desc);
+                log.info("Run job ...");
                 job.run();                                
 
                 // Getting the jobId
@@ -172,8 +161,7 @@ public class RunTest
                     log.error("See below the stack trace... ");                
                     ex.printStackTrace(System.out);
             }                   
-            
-            
+                        
         } catch (Exception ex) {
             log.error("Initialize the Security context [ FAILED ] "
                   +LS+"See below the stack trace... ");
