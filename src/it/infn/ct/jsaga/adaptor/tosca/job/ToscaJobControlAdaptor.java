@@ -84,10 +84,14 @@ import org.json.simple.parser.ParseException;
  * ***        http://www.ct.infn.it/         ***
  * *********************************************
  * File:    ToscaJobControlAdaptor.java
- * Authors: Giuseppe LA ROCCA, Riccardo BRUNO
- * Email:   <giuseppe.larocca, riccardo.bruno>@ct.infn.it
+ * Authors: Giuseppe LA ROCCA, 
+ *          Riccardo BRUNO,
+ *          Marco FARGETTA
+ * Email:   <giuseppe.larocca,
+ *           riccardo.bruno,
+ *           marco.fargetta>@ct.infn.it
  * Ver.:    1.0.0
- * Date:    24 February 2016
+ * Date:    17 March 2016
  * *********************************************/
 public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         implements JobControlAdaptor,
@@ -119,7 +123,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             TimeoutException,
             NoSuccessException {
 
-        log.debug("[Connect (begin)");
+        log.debug("Connect (begin)");
 
         // Extract parameters from connection URL
         action = (String) attributes.get(ACTION);
@@ -141,6 +145,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             endpoint = new URL("http", host, port, basePath);
         } catch (MalformedURLException ex) {
             log.error("Error in the service end-point creation" + ex);
+            throw new BadParameterException(ex);
         }
         log.debug("action:" + action);
         log.debug("tosca_template: " + tosca_template);
