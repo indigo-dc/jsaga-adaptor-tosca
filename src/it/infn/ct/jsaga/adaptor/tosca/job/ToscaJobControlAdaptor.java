@@ -407,6 +407,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                 }
                 // Each iteration waits for a wait_step number of milliseconds
                 try {
+                    log.warn("Attempt n: "+attempts+"/"+(max_attempts-1)+" not successful; waiting ("+wait_step+") ms ...");
                     Thread.sleep(wait_step);
                 } catch (InterruptedException e1) {
                     // TODO Auto-generated catch block
