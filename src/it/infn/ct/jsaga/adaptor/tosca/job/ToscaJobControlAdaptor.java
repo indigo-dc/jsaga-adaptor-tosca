@@ -98,7 +98,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         StagingJobAdaptorTwoPhase,
         CleanableJobAdaptor {
 
-    protected String toscaId = "unset";
+    protected String tosca_id = null;
 
     private static final Logger log
             = Logger.getLogger(ToscaJobControlAdaptor.class);
@@ -112,6 +112,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     private String action = "";
     private String tosca_template = "";
     private URL endpoint;
+    private String tosca_UUID = null;
 
     @Override
     public void connect(String userInfo, String host, int port, String basePath, Map attributes)
@@ -301,14 +302,23 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         return deployment.toString();
     }
     
-    private String submitTosca() {
-        String uuid = null;
+    private String submitTosca() 
+        throws IOException,
+               ParseException,
+               BadResource,
+               NoSuccessException {   
+        StringBuilder orchestrator_result=new StringBuilder("");
         StringBuilder postData = new StringBuilder();
         postData.append("{ \"template\": \"");
+        String tosca_template_content="";
         try {
-            postData.append(new String(Files.readAllBytes(Paths.get(tosca_template))).replace("\n", "\\n"));
+            tosca_template_content = new String(Files.readAllBytes(Paths.get(tosca_template))).replace("\n", "\\n"); 
+            postData.append(tosca_template_content);
         } catch (IOException ex) {
-            log.error("Template is not readable!");
+            log.error("Template '"+tosca_template+"'is not readable");
+            throw new BadResource("Template '"+tosca_template+"'is not readable; template:" +LS
+                                 +"'"+tosca_template_content+"'"
+            );
         }
         postData.append("\"  }");
 
@@ -328,22 +338,75 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             log.debug("Orchestrator status message: " + conn.getResponseMessage());
             if (conn.getResponseCode() == 201) {
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
+                orchestrator_result = new StringBuilder();
                 String ln;
                 while ((ln = br.readLine()) != null) {
-                    sb.append(ln);
+                    orchestrator_result.append(ln);
                 }
-                log.debug("Orchestrator result: " + sb);
-                uuid = getOrchestratorValue(sb.toString(),"uuid");
+                log.debug("Orchestrator result: " + orchestrator_result);
+                tosca_UUID = getOrchestratorValue(orchestrator_result.toString(),"uuid");
             }
         } catch (IOException ex) {
             log.error("Connection error with the service at " + endpoint.toString());
             log.error(ex);
+            throw new NoSuccessException("Connection error with the service at " + endpoint.toString());
         } catch (ParseException ex) {
             log.error("Orchestrator response not parsable");
+            throw new NoSuccessException("Orchestrator response not parsable:"+LS
+                                        +"'"+orchestrator_result.toString()+"'");
         }
-        
-        return uuid;
+        log.debug("Created resource has UUID: '"+tosca_UUID+"'");
+        return tosca_UUID;
+    }
+    
+    private void waitToscaResource() 
+            throws NoSuccessException,
+                   BadResource,
+                   TimeoutException {
+         int attempts = 0;
+         int max_attempts = 12;
+         int wait_step= 10000;
+         String toscaStatus = "CREATE_IN_PROGRESS";
+         for(attempts=0;
+             tosca_UUID != null 
+          && attempts < max_attempts-1 
+          && toscaStatus.equals("CREATE_IN_PROGRESS");
+             attempts++) {
+             try {
+                 log.debug("Waiting ("+wait_step+"ms) for resource creation; attempt: "+(attempts+1)+"/"+max_attempts+" ...");
+                 Thread.sleep(wait_step);
+             } catch (InterruptedException e1) {
+                 // TODO Auto-generated catch block
+                 e1.printStackTrace();
+             }
+             String toscaDeployment = getToscaDeployment(tosca_UUID);
+             try {
+                 log.debug("Deployment: " + toscaDeployment);
+                 toscaStatus = getOrchestratorValue(toscaDeployment, "status");
+                 log.debug("Deplyment " + tosca_UUID + " has status " + toscaStatus);
+             } catch (ParseException ex) {
+                 log.warn("Impossible to parse the tosca deployment json: '"+toscaDeployment+"'");
+             }
+         }
+         if(!toscaStatus.equals("CREATE_COMPLETE ")) {
+             log.debug("Deployments error for "+ tosca_UUID+" with status "+toscaStatus+". Attempts "+attempts+"/" + max_attempts);
+             if(attempts >= max_attempts)
+                 throw new TimeoutException("Reached timeout while waiting for resource");
+             else
+                throw new NoSuccessException("Deployment error.");
+         }
+    }
+    
+    /**
+     * Free all allocated resources
+     */
+    private void releaseResources() {
+        if(tosca_UUID != null) {
+            log.debug("Releasing Tosca resource '"+tosca_UUID+"'");
+        }
+        if(tosca_id != null) {
+            log.debug("Releasing SSH resource '"+tosca_id+"'");
+        }
     }
         
     @Override
@@ -352,78 +415,65 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             TimeoutException,
             NoSuccessException,
             BadResource {
+        
         log.debug("submit (begin)");
+        log.debug("action:" + action);
+        log.debug("jobDesc:" + jobDesc);
+        log.debug("checkMatch:" + checkMatch);
+        log.debug("uniqId:" + uniqId);
         String result = "";
-               
+        String publicIP = "127.0.0.1";
+        int sshPort = 22;
+        
         // SUbmit works in two stages; first create the Tosca resource
         // from the given toca_template, then submit the job to an 
         // SSH instance belonging to the Tosca resources
         if (action.equals("create")) {
-
-            log.info("Creating a new tosca resource, please wait ...");
-            log.debug("action:" + action);
-            log.debug("tosca_template:" + tosca_template);
-
-            // Create Tosca resource form tosca_template, then wait
-            // for its creation and determine an access point with SSH:
-            // IP/Port and credentials (username, PublicKey and PrivateKey)
-            String toscaUUID = submitTosca();
-            
-            // Now waits until the resource is available
-            // A maximum number of attempts will be done
-            // until the resource will be made available
-            int attempts = 0;
-            int max_attempts = 12;
-            int wait_step= 10000;
-            String toscaStatus = "CREATE_IN_PROGRESS";
-            for(attempts=0;
-                attempts < max_attempts-1 && toscaStatus.equals("CREATE_IN_PROGRESS");
-                attempts++) {
-                try {
-                    log.debug("Attempt n: "+attempts+"/"+(max_attempts-1)+" not successful; waiting ("+wait_step+") ms ...");
-                    Thread.sleep(wait_step);
-                } catch (InterruptedException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
-                }
-                String toscaDeployment = getToscaDeployment(toscaUUID);
-                try {
-                    log.debug("Deployment: " + toscaDeployment);
-                    toscaStatus = getOrchestratorValue(toscaDeployment, "status");
-                    log.debug("Deplyment " + toscaUUID + " has status " + toscaStatus);
-                } catch (ParseException ex) {
-                    log.warn("Impossible to parse the tosca deployment json");
-                }
-            }
-            if(!toscaStatus.equals("CREATE_COMPLETE ")) {
-                log.debug("Deployments error for "+ toscaUUID+" with status "+toscaStatus+". Attempts "+attempts+"/" + max_attempts);
-                // Free the resource?
-                // toscaDelete(toscaUUID);
-                throw new NoSuccessException("Deployments error.");
-            }
-            log.info("Deplyed infrastructure " + toscaUUID);
-            // Once tosca resource is ready, submit to SSH
-            // String publicIP = ToscaResults[0];
-            // String sshPort = toscaResults[1];
-            String publicIP = "127.0.0.1";
-            int sshPort = 22;
             try {
+                log.info("Creating a new tosca resource, please wait ...");            
+                log.debug("tosca_template:" + tosca_template);
+
+                // Create Tosca resource form tosca_template, then wait
+                // for its creation and determine an access point with SSH:
+                // IP/Port and credentials (username, PublicKey and PrivateKey)
+                this.tosca_UUID = submitTosca();
+
+                // Now waits until the resource is available
+                // A maximum number of attempts will be done
+                // until the resource will be made available
+                waitToscaResource();
+                
+                // Once tosca resource is ready, submit to SSH
+                // String publicIP = ToscaResults[0];
+                // String sshPort = toscaResults[1];
+                publicIP = "127.0.0.1";
+                sshPort = 22;
+            
                 sshControlAdaptor.connect(null, publicIP, sshPort, null, new HashMap());
             } catch (NotImplementedException ex) {
+                releaseResources();
                 throw new NoSuccessException(ex);
             } catch (AuthenticationFailedException ex) {
+                releaseResources();
                 throw new PermissionDeniedException(ex);
             } catch (AuthorizationFailedException ex) {
+                releaseResources();
                 throw new PermissionDeniedException(ex);
             } catch (BadParameterException ex) {
+                releaseResources();
+                throw new NoSuccessException(ex);
+            } catch (Exception ex) {
+                releaseResources();
                 throw new NoSuccessException(ex);
             }
             result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
-                    + "@" + publicIP + ":" + sshPort + "#" + toscaUUID;
+                    + "@" + publicIP + ":" + sshPort + "#" + tosca_UUID;
         } else {
             log.warn("Unsupported action: '" + action + "' in submit");
         }
         log.debug("submit (end)");
+        log.debug("JobId: '"+result+"'");
+        this.tosca_id = result;
         return result;
     }
    
