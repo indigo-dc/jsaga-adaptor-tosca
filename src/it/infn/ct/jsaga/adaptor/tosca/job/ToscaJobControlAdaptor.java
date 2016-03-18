@@ -97,9 +97,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         implements JobControlAdaptor,
         StagingJobAdaptorTwoPhase,
         CleanableJobAdaptor {
-
-    protected String tosca_id = null;
-
+    
     private static final Logger log
             = Logger.getLogger(ToscaJobControlAdaptor.class);
 
@@ -109,9 +107,10 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     private SSHJobControlAdaptor sshControlAdaptor
             = new SSHJobControlAdaptor();
 
+    protected String tosca_id = null;
     private String action = "";
     private String tosca_template = "";
-    private URL endpoint;
+    private URL endpoint = null;
     private String tosca_UUID = null;
 
     @Override
@@ -138,9 +137,6 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                 + "attributes    : '" + attributes + "'" + LS
                 + "action        : '" + action + "'" + LS
                 + "tosca_template: '" + tosca_template + "'");
-
-        action = (String) attributes.get(ACTION);
-        tosca_template = (String) attributes.get(TOSCA_TEMPLATE);
 
         try {
             endpoint = new URL("http", host, port, basePath);
@@ -250,7 +246,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
      * Retrieve information included in the Tosca JobId
      *
      * @param nativeJobId
-     * @return
+     * @return [0] Native JobId, [1] publicIP [2] sshPort [3] SSH jobId
      */
     private String[] getInfoFromNativeJobId(String nativeJobId) {
         String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@") + 1,
@@ -273,8 +269,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         JSONObject jsonObject = (JSONObject) parser.parse(json);
         
         return (String) jsonObject.get(key);
-    }
-    
+    } 
     
     private String getToscaDeployment(String toscaUUID) {    
         StringBuilder deployment = new StringBuilder();
