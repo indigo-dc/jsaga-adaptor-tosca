@@ -86,7 +86,7 @@ public class RunTest
             session = SessionFactory.createSession(false);
             
             //Modifiy this section according to the A&A schema of your middleware
-            //In this example the rocci A&A schema is used                        
+            //In this example the rocci A&A schema is used
             context = ContextFactory.createContext("tosca");
             
             
@@ -116,7 +116,7 @@ public class RunTest
             try {    
                 log.info("Initialize the JobService context... ");
 
-                ServiceURL = "tosca://orchestrator01-indigo.cloud.ba.infn.it/orchestrator/deployments?tosca_template=/tmp/tosca_template.yaml";
+                ServiceURL = "tosca://90.147.170.168:31491/orchestrator/deployments?tosca_template=/tmp/tosca_template.yaml";
                 URL serviceURL = URLFactory.createURL(ServiceURL);
                 log.info("serviceURL = " + serviceURL);
                 

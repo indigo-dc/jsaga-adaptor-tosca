@@ -31,11 +31,10 @@ import org.ogf.saga.error.NotImplementedException;
 
 public class ToscaSecurityCredential implements SecurityCredential {
 
-    private SSHSecurityCredential m_sshCred;
     private String token;
+    private SSHSecurityCredential sshCredential;
 
-    public ToscaSecurityCredential(SSHSecurityCredential s, String token) {
-        this.m_sshCred = s;
+    public ToscaSecurityCredential(String token) {
         this.token = token;
     }
 
@@ -60,18 +59,18 @@ public class ToscaSecurityCredential implements SecurityCredential {
 
     @Override
     public void close() throws Exception {
-        m_sshCred.close();
     }
 
     @Override
     public void dump(PrintStream out) throws Exception {
-        out.println("SSH Credential to access VM");
-        m_sshCred.dump(out);
         out.flush();
     }
 
-    public SSHSecurityCredential getSSHCredential() {
-        return this.m_sshCred;
+    public SSHSecurityCredential getSshCredential() {
+        return this.sshCredential;
     }
 
+    public void setSshCredential(SSHSecurityCredential sshCred) {
+        this.sshCredential = sshCred;
+    }
 }

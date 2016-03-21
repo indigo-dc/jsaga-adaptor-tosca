@@ -82,11 +82,7 @@ public class ToscaSecurityAdaptor implements ExpirableSecurityAdaptor {
             Map attributes, String contextId)
             throws IncorrectStateException,
             TimeoutException, NoSuccessException {
-        SSHSecurityCredential sshCred
-                = (SSHSecurityCredential) new SSHSecurityAdaptor()
-                .createSecurityCredential(usage, attributes, contextId);
-        
-        return new ToscaSecurityCredential(sshCred,(String)attributes.get("token"));
+        return new ToscaSecurityCredential((String)attributes.get("token"));
     }
 
     @Override

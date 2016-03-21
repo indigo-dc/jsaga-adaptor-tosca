@@ -28,13 +28,10 @@ package it.infn.ct.jsaga.adaptor.tosca;
 
 import fr.in2p3.jsaga.adaptor.ClientAdaptor;
 import fr.in2p3.jsaga.adaptor.base.defaults.Default;
-import fr.in2p3.jsaga.adaptor.base.usage.U;
 import fr.in2p3.jsaga.adaptor.base.usage.UAnd;
 import fr.in2p3.jsaga.adaptor.base.usage.Usage;
-import fr.in2p3.jsaga.adaptor.job.control.description.JobDescriptionTranslator;
 import fr.in2p3.jsaga.adaptor.security.SecurityCredential;
 
-import org.ogf.saga.context.Context;
 
 import org.ogf.saga.error.*;
 
@@ -62,7 +59,6 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   protected String sshHost = null;  
   protected static final String AUTH = "auth";
   protected static final String RESOURCE = "compute";
-  protected static final String ACTION = "create";
   protected static final String USER_NAME = "user.name";
   protected static final String TOKEN = "token";
   protected static final String TOSCA_TEMPLATE = "tosca_template";
@@ -130,8 +126,6 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   { 
     return new UAnd.Builder()
             //.and(new U(AUTH))
-            .and(new U(RESOURCE))
-            .and(new U(ACTION))                        
             .build();      
   }
 
@@ -140,8 +134,6 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   {
     return new Default[] {
         //new Default (AUTH, "x509"),        
-        new Default (RESOURCE, "compute"),
-        new Default (ACTION, "create"),               
     };
   }
 }

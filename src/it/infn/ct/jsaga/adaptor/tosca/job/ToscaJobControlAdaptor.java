@@ -28,7 +28,6 @@ package it.infn.ct.jsaga.adaptor.tosca.job;
 import it.infn.ct.jsaga.adaptor.tosca.ToscaAdaptorCommon;
 import fr.in2p3.jsaga.adaptor.base.usage.U;
 import fr.in2p3.jsaga.adaptor.base.usage.UAnd;
-import fr.in2p3.jsaga.adaptor.base.usage.UOptional;
 import fr.in2p3.jsaga.adaptor.base.usage.Usage;
 import fr.in2p3.jsaga.adaptor.job.control.advanced.CleanableJobAdaptor;
 import fr.in2p3.jsaga.adaptor.job.control.staging.StagingJobAdaptorTwoPhase;
@@ -37,7 +36,10 @@ import fr.in2p3.jsaga.adaptor.job.control.JobControlAdaptor;
 import fr.in2p3.jsaga.adaptor.job.monitor.JobMonitorAdaptor;
 import fr.in2p3.jsaga.adaptor.job.BadResource;
 import fr.in2p3.jsaga.adaptor.job.control.description.JobDescriptionTranslator;
+import fr.in2p3.jsaga.adaptor.security.impl.SSHSecurityCredential;
+import fr.in2p3.jsaga.adaptor.security.impl.UserPassSecurityCredential;
 import fr.in2p3.jsaga.adaptor.ssh3.job.SSHJobControlAdaptor;
+import fr.in2p3.jsaga.adaptor.ssh3.security.SSHSecurityAdaptor;
 import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.NotImplementedException;
 import org.ogf.saga.error.AuthenticationFailedException;
@@ -48,35 +50,21 @@ import org.ogf.saga.error.TimeoutException;
 import org.ogf.saga.error.PermissionDeniedException;
 import java.io.IOException;
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
-import java.net.Inet4Address;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.util.logging.Level;
 import org.apache.log4j.Logger;
-import org.apache.commons.net.telnet.TelnetClient;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.ogf.saga.context.Context;
+import org.ogf.saga.context.ContextFactory;
 
 /* *********************************************
  * *** Istituto Nazionale di Fisica Nucleare ***
@@ -125,8 +113,6 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
 
         log.debug("Connect (begin)");
 
-        // Extract parameters from connection URL
-        action = (String) attributes.get(ACTION);
         tosca_template = (String) attributes.get(TOSCA_TEMPLATE);
 
         // View parameters
@@ -146,9 +132,6 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         log.debug("action:" + action);
         log.debug("tosca_template: " + tosca_template);
-
-        // Get SSH security credentials 
-        sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
     }
 
     @Override
@@ -264,7 +247,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         return info;
     }
     
-    private String getOrchestratorValue(String json, String key) throws ParseException {
+    private String getDocumentValue(String json, String key) throws ParseException {
         JSONParser parser = new JSONParser();
         JSONObject jsonObject = (JSONObject) parser.parse(json);
         
@@ -338,8 +321,13 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                 while ((ln = br.readLine()) != null) {
                     orchestrator_result.append(ln);
                 }
+                
                 log.debug("Orchestrator result: " + orchestrator_result);
-                tosca_UUID = getOrchestratorValue(orchestrator_result.toString(),"uuid");
+                String orchestratorDoc = orchestrator_result.toString();
+                tosca_UUID = getDocumentValue(orchestratorDoc,"uuid");
+                log.debug("Created resource has UUID: '"+tosca_UUID+"'");
+                return orchestratorDoc;
+                
             }
         } catch (IOException ex) {
             log.error("Connection error with the service at " + endpoint.toString());
@@ -350,7 +338,6 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             throw new NoSuccessException("Orchestrator response not parsable:"+LS
                                         +"'"+orchestrator_result.toString()+"'");
         }
-        log.debug("Created resource has UUID: '"+tosca_UUID+"'");
         return tosca_UUID;
     }
     
@@ -377,7 +364,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
              String toscaDeployment = getToscaDeployment(tosca_UUID);
              try {
                  log.debug("Deployment: " + toscaDeployment);
-                 toscaStatus = getOrchestratorValue(toscaDeployment, "status");
+                 toscaStatus = getDocumentValue(toscaDeployment, "status");
                  log.debug("Deplyment " + tosca_UUID + " has status " + toscaStatus);
              } catch (ParseException ex) {
                  log.warn("Impossible to parse the tosca deployment json: '"+toscaDeployment+"'");
@@ -423,49 +410,51 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         // SUbmit works in two stages; first create the Tosca resource
         // from the given toca_template, then submit the job to an 
         // SSH instance belonging to the Tosca resources
-        if (action.equals("create")) {
-            try {
-                log.info("Creating a new tosca resource, please wait ...");            
-                log.debug("tosca_template:" + tosca_template);
+        try {
+            log.info("Creating a new tosca resource, please wait ...");            
+            log.debug("tosca_template:" + tosca_template);
 
-                // Create Tosca resource form tosca_template, then wait
-                // for its creation and determine an access point with SSH:
-                // IP/Port and credentials (username, PublicKey and PrivateKey)
-                this.tosca_UUID = submitTosca();
+            // Create Tosca resource form tosca_template, then wait
+            // for its creation and determine an access point with SSH:
+            // IP/Port and credentials (username, PublicKey and PrivateKey)
+            String doc = submitTosca();
 
-                // Now waits until the resource is available
-                // A maximum number of attempts will be done
-                // until the resource will be made available
-                waitToscaResource();
-                
-                // Once tosca resource is ready, submit to SSH
-                // String publicIP = ToscaResults[0];
-                // String sshPort = toscaResults[1];
-                publicIP = "127.0.0.1";
-                sshPort = 22;
+            // Now waits until the resource is available
+            // A maximum number of attempts will be done
+            // until the resource will be made available
+//            waitToscaResource();
+
+            // Once tosca resource is ready, submit to SSH
+            // String publicIP = ToscaResults[0];
+            // String sshPort = toscaResults[1];
+            publicIP = "90.147.74.95";
+            sshPort = 22;
             
-                sshControlAdaptor.connect(null, publicIP, sshPort, null, new HashMap());
-            } catch (NotImplementedException ex) {
-                releaseResources();
-                throw new NoSuccessException(ex);
-            } catch (AuthenticationFailedException ex) {
-                releaseResources();
-                throw new PermissionDeniedException(ex);
-            } catch (AuthorizationFailedException ex) {
-                releaseResources();
-                throw new PermissionDeniedException(ex);
-            } catch (BadParameterException ex) {
-                releaseResources();
-                throw new NoSuccessException(ex);
-            } catch (Exception ex) {
-                releaseResources();
-                throw new NoSuccessException(ex);
-            }
-            result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
-                    + "@" + publicIP + ":" + sshPort + "#" + tosca_UUID;
-        } else {
-            log.warn("Unsupported action: '" + action + "' in submit");
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential("jobtest", "Xvf56jZ751f")
+//                    sshSecA.createSecurityCredential(3, attrs, "ssh")
+//                    new SSHSecurityCredential("/home/marco/.ssh/id_rsa", "/home/marco/.ssh/id_rsa.pub", "Xvf56jZ751f", "liferayadmin")
+            );
+
+            sshControlAdaptor.connect(null, publicIP, sshPort, null, new HashMap());
+        } catch (NotImplementedException ex) {
+            releaseResources();
+            throw new NoSuccessException(ex);
+        } catch (AuthenticationFailedException ex) {
+            releaseResources();
+            throw new PermissionDeniedException(ex);
+        } catch (AuthorizationFailedException ex) {
+            releaseResources();
+            throw new PermissionDeniedException(ex);
+        } catch (BadParameterException ex) {
+            releaseResources();
+            throw new NoSuccessException(ex);
+        } catch (Exception ex) {
+            releaseResources();
+            throw new NoSuccessException(ex);
         }
+        result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
+                + "@" + publicIP + ":" + sshPort + "#" + tosca_UUID;
         log.debug("submit (end)");
         log.debug("JobId: '"+result+"'");
         this.tosca_id = result;
@@ -489,7 +478,6 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         String _nativeJobId = jobIdInfo[3];
         try {
-            sshControlAdaptor.setSecurityCredential(credential.getSSHCredential());
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             result = sshControlAdaptor.getInputStagingTransfer(_nativeJobId);
             log.debug("result: " + result);

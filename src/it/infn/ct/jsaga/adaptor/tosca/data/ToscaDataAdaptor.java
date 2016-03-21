@@ -62,35 +62,5 @@ public class ToscaDataAdaptor extends SFTPDataAdaptor {
             throws NotImplementedException, AuthenticationFailedException,
             AuthorizationFailedException, BadParameterException,
             TimeoutException, NoSuccessException {
-        try {
-            m_conn = new Connection(host, port);
-            m_conn.connect(null);
-
-            String userId = ((ToscaSecurityCredential) credential)
-                    .getSSHCredential()
-                    .getUserId();
-
-            String passPhrase = ((ToscaSecurityCredential) credential)
-                    .getSSHCredential()
-                    .getUserPass();
-
-            // clone private key because the object will be reset
-            byte[] privateKey = ((ToscaSecurityCredential) credential)
-                    .getSSHCredential()
-                    .getPrivateKey()
-                    .clone();
-
-            char[] pemPrivateKey = new String(privateKey).toCharArray();
-            if (!m_conn.authenticateWithPublicKey(userId, pemPrivateKey, passPhrase)) {
-                m_conn.close();
-                throw new AuthenticationFailedException("Auth fail");
-            }
-        } catch (Exception e) {
-            m_conn.close();
-            if ("Auth fail".equals(e.getMessage())) {
-                throw new AuthenticationFailedException(e);
-            }
-            throw new NoSuccessException("Unable to connect to server", e);
-        }
     }
 }
