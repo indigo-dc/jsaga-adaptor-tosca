@@ -33,6 +33,8 @@ public class ToscaSecurityCredential implements SecurityCredential {
 
     private String token;
     private SSHSecurityCredential sshCredential;
+    private String ssh_username;
+    private String ssh_password;
 
     public ToscaSecurityCredential(String token) {
         this.token = token;
@@ -40,6 +42,11 @@ public class ToscaSecurityCredential implements SecurityCredential {
 
     public ToscaSecurityCredential() {
     }
+    
+    public void setUsername(String username) { this.ssh_username=username; }
+    public void setPassword(String password) { this.ssh_password=password; }
+    public String getUsername() { return this.ssh_username; }
+    public String getPassword() { return this.ssh_password; }
 
     @Override
     public String getUserID() throws Exception {
@@ -66,11 +73,15 @@ public class ToscaSecurityCredential implements SecurityCredential {
         out.flush();
     }
 
-    public SSHSecurityCredential getSshCredential() {
+    public SSHSecurityCredential getSSHCredential() {
         return this.sshCredential;
     }
 
-    public void setSshCredential(SSHSecurityCredential sshCred) {
+    public void setSSHCredential(SSHSecurityCredential sshCred) {
         this.sshCredential = sshCred;
+    }
+    
+    public ToscaSecurityCredential getCredential() {
+        return this;
     }
 }

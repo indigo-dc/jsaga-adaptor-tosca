@@ -72,7 +72,8 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   protected int    toscaPort = 80; // Default port is HTTP
   protected String notfyEndpointHost="unset";
   protected int    notfyEndpointPort=8888; // Default port is 8888 ApiServerDaemon dev. port
-  
+  protected String ssh_username="";
+  protected String ssh_password="";
   
   @Override
   public Class[] getSupportedSecurityCredentialClasses() 
@@ -86,10 +87,14 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
   public void setSecurityCredential(SecurityCredential sc) 
   {
       credential = (ToscaSecurityCredential)sc;
+      credential.setUsername(ssh_username);
+      credential.setPassword(ssh_password);
       
       try {            
             log.debug("No security is necessary yet"  + LS 
-                     +"User: '"+credential.getUserID()+"'"
+                     +"User: '"+credential.getUserID()+"'"+LS
+                     +"ssh_username: '"+ssh_username+"'"+LS
+                    +"ssh_password: '"+ssh_password+"'"+LS
                     );
             log.debug("TOKEN:"+sc.getAttribute("token"));                        
       }  catch (NotImplementedException e) { 
@@ -116,7 +121,14 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
                 BadParameterException, 
                 TimeoutException, 
                 NoSuccessException 
-  { }
+  {
+      log.debug("ToscaAdaptorCommon: connect()");
+      log.debug("userInfo: "+userInfo);
+      log.debug("host: "+host);
+      log.debug("port: "+port);
+      log.debug("basePath: "+basePath);
+      log.debug("attributes: "+attributes);
+  }
   
   @Override
   public void disconnect() throws NoSuccessException {  } 

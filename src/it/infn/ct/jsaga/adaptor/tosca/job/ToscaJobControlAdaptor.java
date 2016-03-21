@@ -40,6 +40,7 @@ import fr.in2p3.jsaga.adaptor.security.impl.SSHSecurityCredential;
 import fr.in2p3.jsaga.adaptor.security.impl.UserPassSecurityCredential;
 import fr.in2p3.jsaga.adaptor.ssh3.job.SSHJobControlAdaptor;
 import fr.in2p3.jsaga.adaptor.ssh3.security.SSHSecurityAdaptor;
+import it.infn.ct.jsaga.adaptor.tosca.security.ToscaSecurityCredential;
 import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.NotImplementedException;
 import org.ogf.saga.error.AuthenticationFailedException;
@@ -100,6 +101,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     private String tosca_template = "";
     private URL endpoint = null;
     private String tosca_UUID = null;
+    
 
     @Override
     public void connect(String userInfo, String host, int port, String basePath, Map attributes)
@@ -150,6 +152,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         String _nativeJobId = jobIdInfo[3];
         try {
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
+            );
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             sshControlAdaptor.start(_nativeJobId);
         } catch (NotImplementedException ex) {
@@ -179,6 +184,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         String _nativeJobId = jobIdInfo[3];
         try {
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
+            );
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             sshControlAdaptor.cancel(_nativeJobId);
         } catch (NotImplementedException ex) {
@@ -208,6 +216,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         String _nativeJobId = jobIdInfo[3];
         try {
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
+            );
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             sshControlAdaptor.clean(_nativeJobId);
 
@@ -229,7 +240,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
      * Retrieve information included in the Tosca JobId
      *
      * @param nativeJobId
-     * @return [0] Native JobId, [1] publicIP [2] sshPort [3] SSH jobId
+     * @return [0] Native JobId, [1] ssh_publicIP [2] ssh_port [3] SSH jobId
      */
     private String[] getInfoFromNativeJobId(String nativeJobId) {
         String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@") + 1,
@@ -378,7 +389,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                 throw new NoSuccessException("Deployment error.");
          }
     }
-    
+        
     /**
      * Free all allocated resources
      */
@@ -404,8 +415,10 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         log.debug("checkMatch:" + checkMatch);
         log.debug("uniqId:" + uniqId);
         String result = "";
-        String publicIP = "127.0.0.1";
-        int sshPort = 22;
+        String ssh_publicIP = "127.0.0.1";
+        int ssh_port = 22;
+      //String ssh_username;
+      //String ssh_password;
         
         // SUbmit works in two stages; first create the Tosca resource
         // from the given toca_template, then submit the job to an 
@@ -417,7 +430,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             // Create Tosca resource form tosca_template, then wait
             // for its creation and determine an access point with SSH:
             // IP/Port and credentials (username, PublicKey and PrivateKey)
-            String doc = submitTosca();
+            //String doc = submitTosca();
 
             // Now waits until the resource is available
             // A maximum number of attempts will be done
@@ -425,18 +438,19 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
 //            waitToscaResource();
 
             // Once tosca resource is ready, submit to SSH
-            // String publicIP = ToscaResults[0];
-            // String sshPort = toscaResults[1];
-            publicIP = "90.147.74.95";
-            sshPort = 22;
-            
+            // String ssh_publicIP = ToscaResults[0];
+            // String ssh_port = toscaResults[1];
+            ssh_publicIP = "90.147.74.95";
+            ssh_port = 22;
+            ssh_username="jobtest";
+            ssh_password="Xvf56jZ751f";
+                          
+            credential.setUsername(ssh_username);
+            credential.setPassword(ssh_password);            
             sshControlAdaptor.setSecurityCredential(
-                    new UserPassSecurityCredential("jobtest", "Xvf56jZ751f")
-//                    sshSecA.createSecurityCredential(3, attrs, "ssh")
-//                    new SSHSecurityCredential("/home/marco/.ssh/id_rsa", "/home/marco/.ssh/id_rsa.pub", "Xvf56jZ751f", "liferayadmin")
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-
-            sshControlAdaptor.connect(null, publicIP, sshPort, null, new HashMap());
+            sshControlAdaptor.connect(null, ssh_publicIP, ssh_port, null, new HashMap());
         } catch (NotImplementedException ex) {
             releaseResources();
             throw new NoSuccessException(ex);
@@ -454,7 +468,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             throw new NoSuccessException(ex);
         }
         result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
-                + "@" + publicIP + ":" + sshPort + "#" + tosca_UUID;
+                + "@" + ssh_publicIP + ":" + ssh_port + "#" + tosca_UUID;
         log.debug("submit (end)");
         log.debug("JobId: '"+result+"'");
         this.tosca_id = result;
@@ -477,7 +491,10 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
         }
         String _nativeJobId = jobIdInfo[3];
-        try {
+        try {                        
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
+            );
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             result = sshControlAdaptor.getInputStagingTransfer(_nativeJobId);
             log.debug("result: " + result);
@@ -515,6 +532,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         String _nativeJobId = jobIdInfo[3];
         try {
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
+            );
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             result = sshControlAdaptor.getOutputStagingTransfer(_nativeJobId);
             log.debug("result: " + result);
@@ -571,6 +591,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         }
         String _nativeJobId = jobIdInfo[3];
         try {
+            sshControlAdaptor.setSecurityCredential(
+                    new UserPassSecurityCredential(ssh_username, ssh_password)
+            );
             sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
             result = sshControlAdaptor.getStagingDirectory(_nativeJobId);
             log.debug("result: " + result);

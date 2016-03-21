@@ -34,7 +34,11 @@ import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.NotImplementedException;
 import org.ogf.saga.error.TimeoutException;
 import ch.ethz.ssh2.Connection;
+import fr.in2p3.jsaga.adaptor.security.impl.UserPassSecurityCredential;
+import it.infn.ct.jsaga.adaptor.tosca.job.ToscaJobControlAdaptor;
 import java.util.Map;
+import org.apache.log4j.Logger;
+import org.ogf.saga.context.Context;
 
 /* ***************************************************
  * *** Centre de Calcul de l'IN2P3 - Lyon (France) ***
@@ -45,6 +49,9 @@ import java.util.Map;
  * Date:   22 oct 2013
  * ***************************************************/
 public class ToscaDataAdaptor extends SFTPDataAdaptor {
+    
+    private static final Logger log
+            = Logger.getLogger(ToscaDataAdaptor.class);
 
     @Override
     public String getType() {
@@ -61,6 +68,22 @@ public class ToscaDataAdaptor extends SFTPDataAdaptor {
             int port, String basePath, Map attributes)
             throws NotImplementedException, AuthenticationFailedException,
             AuthorizationFailedException, BadParameterException,
-            TimeoutException, NoSuccessException {
+            TimeoutException, NoSuccessException { 
+        log.debug("ToscaDataAdaptor connect()");
+        log.debug("userInfo: "+userInfo);
+        log.debug("host: "+host);
+        log.debug("port: "+port);
+        log.debug("basePath: "+basePath);
+        log.debug("attributes: "+attributes);
+                
+        String ssh_username = ((ToscaSecurityCredential) credential).getUsername();                       
+        log.debug("sshUserId: "+ssh_username);
+                
+        String ssh_password = ((ToscaSecurityCredential) credential).getPassword();                        
+        log.debug("sshPassword: "+ssh_password);
+        
+        setSecurityCredential(new UserPassSecurityCredential(ssh_username, ssh_password));
+        //setSecurityCredential(new UserPassSecurityCredential("jobtest", "Xvf56jZ751f"));
+        super.connect(userInfo,host,port,basePath,attributes);                        
     }
 }
