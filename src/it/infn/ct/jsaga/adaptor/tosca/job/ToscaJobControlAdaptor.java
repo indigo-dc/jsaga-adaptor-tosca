@@ -258,11 +258,22 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         return info;
     }
     
+    /**
+     * Read values from the json.
+     * 
+     * @param json The json from where to 
+     * @param key The element to return. It can retrieve nested elements providing the full chain as &lt;element&gt;.&lt;element&gt;.&lt;element&gt;
+     * @return The element value
+     * @throws ParseException If the json cannot be parsed
+     */
     private String getDocumentValue(String json, String key) throws ParseException {
         JSONParser parser = new JSONParser();
         JSONObject jsonObject = (JSONObject) parser.parse(json);
-        
-        return (String) jsonObject.get(key);
+        String keyelement[]=key.split("\\.");
+        for(int i=0; i<(keyelement.length-1); i++){
+            jsonObject = (JSONObject)jsonObject.get(keyelement[i]);
+        }
+        return (String) jsonObject.get(keyelement[keyelement.length-1]);
     } 
     
     private String getToscaDeployment(String toscaUUID) {    
