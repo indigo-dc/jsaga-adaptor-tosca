@@ -368,7 +368,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                    BadResource,
                    TimeoutException {
          int attempts = 0;
-         int max_attempts = 12;
+         int max_attempts = 60;
          int wait_step= 10000;
          String toscaStatus = "CREATE_IN_PROGRESS";
          for(attempts=0;
@@ -407,10 +407,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     private void releaseResources() {
         if(tosca_UUID != null) {
             log.debug("Releasing Tosca resource '"+tosca_UUID+"'");
-        }
-        if(tosca_id != null) {
-            log.debug("Releasing SSH resource '"+tosca_id+"'");
-        }
+            // Release of Tosca resource not yet implemented
+            // curl -X DELETE  http://90.147.170.168:31491/orchestrator/deployments/<uuid>
+        }        
     }
         
     @Override
@@ -458,11 +457,17 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
 	    String sCreds[] = creds.split(",");
 	    if(sCreds[0].startsWith("password")){
               ssh_password=sCreds[0].split("=")[1].trim();
-              ssh_username=sCreds[1].split("=")[1].trim();
+              ssh_username=sCreds[1].split("=")[1].trim();              
             } else {
-		ssh_password=sCreds[1].split("=")[1].trim();
+	      ssh_password=sCreds[1].split("=")[1].trim();
               ssh_username=sCreds[0].split("=")[1].trim();
-	    }
+            }
+            log.debug(LS+"IP      : '"+ssh_publicIP+"'"+
+                      LS+"Port    : '"+ssh_port    +"'"+
+                      LS+"username: '"+ssh_username+"'"+
+                      LS+"password: '"+ssh_password+"'"
+                     );
+            
             credential.setUsername(ssh_username);
             credential.setPassword(ssh_password);            
             sshControlAdaptor.setSecurityCredential(
