@@ -441,21 +441,28 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             // Create Tosca resource form tosca_template, then wait
             // for its creation and determine an access point with SSH:
             // IP/Port and credentials (username, PublicKey and PrivateKey)
-            //String doc = submitTosca();
+            String doc = submitTosca();
 
             // Now waits until the resource is available
             // A maximum number of attempts will be done
             // until the resource will be made available
-//            waitToscaResource();
+            waitToscaResource();
 
             // Once tosca resource is ready, submit to SSH
             // String ssh_publicIP = ToscaResults[0];
             // String ssh_port = toscaResults[1];
-            ssh_publicIP = "90.147.74.95";
+            ssh_publicIP = getDocumentValue(doc, "outputs.node_ip");
             ssh_port = 22;
-            ssh_username="jobtest";
-            ssh_password="Xvf56jZ751f";
-                          
+	    String creds = getDocumentValue(doc, "outputs.node_creds");
+	    creds = creds.substring(1, creds.length()-1);
+	    String sCreds[] = creds.split(",");
+	    if(sCreds[0].startsWith("password")){
+              ssh_password=sCreds[0].split("=")[1].trim();
+              ssh_username=sCreds[1].split("=")[1].trim();
+            } else {
+		ssh_password=sCreds[1].split("=")[1].trim();
+              ssh_username=sCreds[0].split("=")[1].trim();
+	    }
             credential.setUsername(ssh_username);
             credential.setPassword(ssh_password);            
             sshControlAdaptor.setSecurityCredential(
