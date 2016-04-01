@@ -36,14 +36,19 @@ import fr.in2p3.jsaga.adaptor.job.control.manage.ListableJobAdaptor;
 import fr.in2p3.jsaga.adaptor.job.monitor.JobInfoAdaptor;
 import fr.in2p3.jsaga.adaptor.job.monitor.JobStatus;
 import fr.in2p3.jsaga.adaptor.job.monitor.QueryIndividualJob;
+import fr.in2p3.jsaga.adaptor.security.impl.UserPassSecurityCredential;
 import fr.in2p3.jsaga.adaptor.ssh3.job.SSHJobMonitorAdaptor;
+import static it.infn.ct.jsaga.adaptor.tosca.ToscaAdaptorCommon.LS;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
+import org.json.simple.parser.ParseException;
 
 import org.ogf.saga.error.*;
 
@@ -86,34 +91,39 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
                      BadParameterException, 
                      TimeoutException, 
                      NoSuccessException 
-  {
-      
-    super.connect(userInfo, host, port, basePath, attributes);
-    //sshMonitorAdaptor.setSecurityCredential(credential.getSSHCredential());        
+  {      
+    super.connect(userInfo, host, port, basePath, attributes);    
   }
     
   @Override
   public String getType() {
-    return "rocci";
+    return "tosca";
   }
   
-  public void setSSHHost(String host) {
-      //this.sshHost = host;    
-  }
-
   @Override
   public JobStatus getStatus(String nativeJobId) 
                    throws TimeoutException, NoSuccessException 
-  {        
-    JobStatus result = null;
-    String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@")+1, 
-                                             nativeJobId.indexOf("#"));
+  {  
+    JobStatus result = null;    
+    log.debug("getStatus (begin) '"+nativeJobId+"'");
     
-    String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
-    
+    // Get and retrieve info from JobId
+    String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
+    String sshJobId    = jobIdInfo[1];
+    tosca_UUID         = jobIdInfo[2];
+    String sshPublicIP = jobIdInfo[3];
+    int sshPort        = Integer.parseInt(jobIdInfo[4]);
+    ssh_username       = jobIdInfo[5];
+    ssh_password       = jobIdInfo[6];                                                          
+            
+    credential.setUsername(ssh_username);
+    credential.setPassword(ssh_password);            
+    sshMonitorAdaptor.setSecurityCredential(
+            new UserPassSecurityCredential(ssh_username, ssh_password)
+    );    
     try {
-        sshMonitorAdaptor.connect(null, _publicIP, 22, null, new HashMap());
-        result = sshMonitorAdaptor.getStatus(_nativeJobId);
+        sshMonitorAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+        result = sshMonitorAdaptor.getStatus(sshJobId);
     } catch (NotImplementedException ex) {
         java.util.logging.Logger.getLogger(ToscaJobMonitorAdaptor.class.getName()).log(Level.SEVERE, null, ex);
     } catch (AuthenticationFailedException ex) {
@@ -125,7 +135,7 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
     }
     
     log.info("");
-    log.info("Calling the getStatus() method");    
+    log.info("getStatus() (end)");    
     
     return result;    
   }
@@ -141,11 +151,19 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
               throws NotImplementedException, NoSuccessException 
   {    
     Date result = null;
-    String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
+    log.info("getCreated() (start)");
     
-    result = sshMonitorAdaptor.getCreated(_nativeJobId);
-    log.info("Calling the getCreated() method");
+    // Get and retrieve info from JobId
+    String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
+    String sshJobId    = jobIdInfo[1];
+    tosca_UUID         = jobIdInfo[2];
+    String sshPublicIP = jobIdInfo[3];
+    int sshPort        = Integer.parseInt(jobIdInfo[4]);
+    ssh_username       = jobIdInfo[5];
+    ssh_password       = jobIdInfo[6];                                                          
     
+    result = sshMonitorAdaptor.getCreated(sshJobId);
+    log.info("getCreated() (end)");    
     return result;
   }
   
@@ -154,11 +172,19 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
               throws NotImplementedException, NoSuccessException 
   {     
     Date result = null;
-    String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
+    log.info("getStarted() (begin)");
     
-    result = sshMonitorAdaptor.getStarted(_nativeJobId);
-    log.info("Calling the getStarted() method");
+    // Get and retrieve info from JobId
+    String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
+    String sshJobId    = jobIdInfo[1];
+    tosca_UUID         = jobIdInfo[2];
+    String sshPublicIP = jobIdInfo[3];
+    int sshPort        = Integer.parseInt(jobIdInfo[4]);
+    ssh_username       = jobIdInfo[5];
+    ssh_password       = jobIdInfo[6];                                                          
     
+    result = sshMonitorAdaptor.getStarted(sshJobId);
+    log.info("getStarted() (end)");
     return result;
   }
   
@@ -167,11 +193,19 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
               throws NotImplementedException, NoSuccessException 
   {    
     Date result = null;
-    String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
+    log.info("getFinished() (begin)");
     
-    result = sshMonitorAdaptor.getFinished(_nativeJobId);
-    log.info("Calling the getFinished() method");
+    // Get and retrieve info from JobId
+    String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
+    String sshJobId    = jobIdInfo[1];
+    tosca_UUID         = jobIdInfo[2];
+    String sshPublicIP = jobIdInfo[3];
+    int sshPort        = Integer.parseInt(jobIdInfo[4]);
+    ssh_username       = jobIdInfo[5];
+    ssh_password       = jobIdInfo[6];                                                          
     
+    result = sshMonitorAdaptor.getFinished(sshJobId);
+    log.info("getFinished() (end)");
     return result;
   }
 
@@ -180,11 +214,19 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
                  throws NotImplementedException, NoSuccessException 
   {        
     Integer result = null;
-    String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
+    log.info("getExitCode() (begin)");
     
-    result = sshMonitorAdaptor.getExitCode(_nativeJobId);
-    log.info("Calling the getExitCode() method");
+    // Get and retrieve info from JobId
+    String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
+    String sshJobId    = jobIdInfo[1];
+    tosca_UUID         = jobIdInfo[2];
+    String sshPublicIP = jobIdInfo[3];
+    int sshPort        = Integer.parseInt(jobIdInfo[4]);
+    ssh_username       = jobIdInfo[5];
+    ssh_password       = jobIdInfo[6];                                                          
     
+    result = sshMonitorAdaptor.getExitCode(sshJobId);
+    log.info("getExitCode() (end)");
     return result;
   }
   
@@ -193,10 +235,19 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
                   throws NotImplementedException, NoSuccessException 
   {        
     String[] result = null;
-    String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
+    log.info("getExecutionHosts() (begin)");
     
-    result = sshMonitorAdaptor.getExecutionHosts(_nativeJobId);
-        
+    // Get and retrieve info from JobId
+    String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
+    String sshJobId    = jobIdInfo[1];
+    tosca_UUID         = jobIdInfo[2];
+    String sshPublicIP = jobIdInfo[3];
+    int sshPort        = Integer.parseInt(jobIdInfo[4]);
+    ssh_username       = jobIdInfo[5];
+    ssh_password       = jobIdInfo[6];                                                          
+    
+    result = sshMonitorAdaptor.getExecutionHosts(sshJobId);
+    log.info("getExecutionHosts() (end)");
     return result;
   }
   

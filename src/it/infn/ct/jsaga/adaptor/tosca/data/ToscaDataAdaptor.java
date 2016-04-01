@@ -36,6 +36,7 @@ import org.ogf.saga.error.TimeoutException;
 import ch.ethz.ssh2.Connection;
 import fr.in2p3.jsaga.adaptor.security.impl.UserPassSecurityCredential;
 import it.infn.ct.jsaga.adaptor.tosca.job.ToscaJobControlAdaptor;
+import java.io.IOException;
 import java.util.Map;
 import org.apache.log4j.Logger;
 import org.ogf.saga.context.Context;
@@ -82,8 +83,15 @@ public class ToscaDataAdaptor extends SFTPDataAdaptor {
         String ssh_password = ((ToscaSecurityCredential) credential).getPassword();                        
         log.debug("sshPassword: "+ssh_password);
         
-        setSecurityCredential(new UserPassSecurityCredential(ssh_username, ssh_password));
+        //setSecurityCredential(new UserPassSecurityCredential(ssh_username, ssh_password));
         //setSecurityCredential(new UserPassSecurityCredential("jobtest", "Xvf56jZ751f"));
-        super.connect(userInfo,host,port,basePath,attributes);                        
+        //super.connect(userInfo,host,port,basePath,attributes);                        
+        m_conn = new Connection(host,port);
+        try {
+            m_conn.connect(null);        
+            m_conn.authenticateWithPassword(ssh_username, ssh_password);
+        } catch(IOException ex) { 
+            throw new NoSuccessException(ex);
+        }        
     }
 }

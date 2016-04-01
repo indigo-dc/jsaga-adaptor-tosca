@@ -36,11 +36,8 @@ import fr.in2p3.jsaga.adaptor.job.control.JobControlAdaptor;
 import fr.in2p3.jsaga.adaptor.job.monitor.JobMonitorAdaptor;
 import fr.in2p3.jsaga.adaptor.job.BadResource;
 import fr.in2p3.jsaga.adaptor.job.control.description.JobDescriptionTranslator;
-import fr.in2p3.jsaga.adaptor.security.impl.SSHSecurityCredential;
 import fr.in2p3.jsaga.adaptor.security.impl.UserPassSecurityCredential;
 import fr.in2p3.jsaga.adaptor.ssh3.job.SSHJobControlAdaptor;
-import fr.in2p3.jsaga.adaptor.ssh3.security.SSHSecurityAdaptor;
-import it.infn.ct.jsaga.adaptor.tosca.security.ToscaSecurityCredential;
 import org.ogf.saga.error.NoSuccessException;
 import org.ogf.saga.error.NotImplementedException;
 import org.ogf.saga.error.AuthenticationFailedException;
@@ -61,11 +58,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.log4j.Logger;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.ogf.saga.context.Context;
-import org.ogf.saga.context.ContextFactory;
 
 /* *********************************************
  * *** Istituto Nazionale di Fisica Nucleare ***
@@ -98,11 +91,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
 
     protected String tosca_id = null;
     private String action = "";
-    private String tosca_template = "";
-    private URL endpoint = null;
-    private String tosca_UUID = null;
+    private String tosca_template = "";           
     
-
     @Override
     public void connect(String userInfo, String host, int port, String basePath, Map attributes)
             throws NotImplementedException,
@@ -142,21 +132,22 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             NoSuccessException {
 
         log.debug("start (begin)");
+        
+        // Get and retrieve info from JobId
         String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
-        String _publicIP = jobIdInfo[1];
-        int _sshPort = 22;
-        try {
-            Integer.parseInt(jobIdInfo[2]);
-        } catch (NumberFormatException e) {
-            log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
-        }
-        String _nativeJobId = jobIdInfo[3];
+        String sshJobId    = jobIdInfo[1];
+        tosca_UUID         = jobIdInfo[2];
+        String sshPublicIP = jobIdInfo[3];
+        int sshPort        = Integer.parseInt(jobIdInfo[4]);
+        ssh_username       = jobIdInfo[5];
+        ssh_password       = jobIdInfo[6]; 
+        
         try {
             sshControlAdaptor.setSecurityCredential(
                     new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-            sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
-            sshControlAdaptor.start(_nativeJobId);
+            sshControlAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+            sshControlAdaptor.start(sshJobId);
         } catch (NotImplementedException ex) {
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
@@ -174,21 +165,22 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             TimeoutException,
             NoSuccessException {
         log.debug("cancel (begin)");
+        
+        // Get and retrieve info from JobId
         String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
-        String _publicIP = jobIdInfo[1];
-        int _sshPort = 22;
-        try {
-            Integer.parseInt(jobIdInfo[2]);
-        } catch (NumberFormatException e) {
-            log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
-        }
-        String _nativeJobId = jobIdInfo[3];
+        String sshJobId    = jobIdInfo[1];
+        tosca_UUID         = jobIdInfo[2];
+        String sshPublicIP = jobIdInfo[3];
+        int sshPort        = Integer.parseInt(jobIdInfo[4]);
+        ssh_username       = jobIdInfo[5];
+        ssh_password       = jobIdInfo[6];                                               
+        
         try {
             sshControlAdaptor.setSecurityCredential(
                     new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-            sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
-            sshControlAdaptor.cancel(_nativeJobId);
+            sshControlAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+            sshControlAdaptor.cancel(sshJobId);
         } catch (NotImplementedException ex) {
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
@@ -206,24 +198,25 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             TimeoutException,
             NoSuccessException {                
         log.debug("clean (begin)");
+        
+        // Get and retrieve info from JobId
         String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
-        String _publicIP = jobIdInfo[1];
-        int _sshPort = 22;
-        try {
-            Integer.parseInt(jobIdInfo[2]);
-        } catch (NumberFormatException e) {
-            log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
-        }
-        String _nativeJobId = jobIdInfo[3];
+        String sshJobId    = jobIdInfo[1];
+        tosca_UUID         = jobIdInfo[2];
+        String sshPublicIP = jobIdInfo[3];
+        int sshPort        = Integer.parseInt(jobIdInfo[4]);
+        ssh_username       = jobIdInfo[5];
+        ssh_password       = jobIdInfo[6];                        
+        
         try {
             sshControlAdaptor.setSecurityCredential(
                     new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-            sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
-            sshControlAdaptor.clean(_nativeJobId);
+            sshControlAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+            sshControlAdaptor.clean(sshJobId);
 
-            // Stopping the VM Server
-            //results = run_OCCI("delete", Execute);            
+            // Releasing TOSCA resources
+            releaseToscaResources();
         } catch (NotImplementedException ex) {
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
@@ -234,73 +227,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             throw new NoSuccessException(ex);
         }
         log.debug("clean (end)");
-    }
-    
-    /**
-     * Retrieve information included in the Tosca JobId
-     *
-     * @param nativeJobId
-     * @return [0] Native JobId, [1] ssh_publicIP [2] ssh_port [3] SSH jobId
-     */
-    private String[] getInfoFromNativeJobId(String nativeJobId) {
-        String _publicIP = nativeJobId.substring(nativeJobId.indexOf("@") + 1,
-                nativeJobId.indexOf(":"));
-        String _sshPort = nativeJobId.substring(nativeJobId.indexOf(":") + 1,
-                nativeJobId.indexOf("#"));
-        String _nativeJobId = nativeJobId.substring(0, nativeJobId.indexOf("@"));
-
-        log.debug("nativeJobId: " + nativeJobId);
-        log.debug("_publicIP: " + _publicIP);
-        log.debug("_sshPort: " + _sshPort);
-        log.debug("_nativeJobId: " + _nativeJobId);
-
-        String[] info = {nativeJobId, _publicIP, _sshPort, _nativeJobId};
-        return info;
-    }
-    
-    /**
-     * Read values from the json.
-     * 
-     * @param json The json from where to 
-     * @param key The element to return. It can retrieve nested elements providing the full chain as &lt;element&gt;.&lt;element&gt;.&lt;element&gt;
-     * @return The element value
-     * @throws ParseException If the json cannot be parsed
-     */
-    private String getDocumentValue(String json, String key) throws ParseException {
-        JSONParser parser = new JSONParser();
-        JSONObject jsonObject = (JSONObject) parser.parse(json);
-        String keyelement[]=key.split("\\.");
-        for(int i=0; i<(keyelement.length-1); i++){
-            jsonObject = (JSONObject)jsonObject.get(keyelement[i]);
-        }
-        return (String) jsonObject.get(keyelement[keyelement.length-1]);
-    } 
-    
-    private String getToscaDeployment(String toscaUUID) {    
-        StringBuilder deployment = new StringBuilder();
-        HttpURLConnection conn;
-        try {
-            URL deploymentEndpoint = new URL(endpoint.toString() + "/" + toscaUUID);
-            conn = (HttpURLConnection) deploymentEndpoint.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("charset", "utf-8");
-            log.debug("Orchestrator status code: " + conn.getResponseCode());
-            log.debug("Orchestrator status message: " + conn.getResponseMessage());
-            if (conn.getResponseCode() == 200) {
-                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));                
-                String ln;
-                while ((ln = br.readLine()) != null) {
-                    deployment.append(ln);
-                }
-                log.debug("Orchestrator result: " + deployment);
-            }
-        } catch (IOException ex) {
-            log.error("Connection error with the service at " + endpoint.toString());
-            log.error(ex);        
-        }
-        return deployment.toString();
-    }
+    }                            
     
     private String submitTosca() 
         throws IOException,
@@ -363,14 +290,16 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         return tosca_UUID;
     }
     
-    private void waitToscaResource() 
+    private String waitToscaResource() 
             throws NoSuccessException,
                    BadResource,
                    TimeoutException {
          int attempts = 0;
-         int max_attempts = 60;
-         int wait_step= 10000;
+         int max_attempts = 20;
+         int wait_step= 30000;
          String toscaStatus = "CREATE_IN_PROGRESS";
+         String toscaDeployment="";
+         
          for(attempts=0;
              tosca_UUID != null 
           && attempts < max_attempts-1 
@@ -383,32 +312,36 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                  // TODO Auto-generated catch block
                  e1.printStackTrace();
              }
-             String toscaDeployment = getToscaDeployment(tosca_UUID);
+             toscaDeployment = getToscaDeployment(tosca_UUID);
              try {
                  log.debug("Deployment: " + toscaDeployment);
                  toscaStatus = getDocumentValue(toscaDeployment, "status");
-                 log.debug("Deplyment " + tosca_UUID + " has status " + toscaStatus);
+                 log.debug("Deplyment " + tosca_UUID + " has status '" + toscaStatus + "'");
              } catch (ParseException ex) {
                  log.warn("Impossible to parse the tosca deployment json: '"+toscaDeployment+"'");
              }
          }
-         if(!toscaStatus.equals("CREATE_COMPLETE ")) {
-             log.debug("Deployments error for "+ tosca_UUID+" with status "+toscaStatus+". Attempts "+attempts+"/" + max_attempts);
+         if(!toscaStatus.equals("CREATE_COMPLETE")) {
+             log.debug("Deployments error for "+ tosca_UUID+" with status '"+toscaStatus+"'. Attempts "+attempts+"/" + max_attempts);
              if(attempts >= max_attempts)
                  throw new TimeoutException("Reached timeout while waiting for resource");
              else
                 throw new NoSuccessException("Deployment error.");
          }
+         
+         return toscaDeployment;
     }
         
     /**
      * Free all allocated resources
      */
-    private void releaseResources() {
+    private void releaseToscaResources() {
         if(tosca_UUID != null) {
             log.debug("Releasing Tosca resource '"+tosca_UUID+"'");
-            // Release of Tosca resource not yet implemented
-            // curl -X DELETE  http://90.147.170.168:31491/orchestrator/deployments/<uuid>
+            // Release of Tosca resource not yet implemented            
+            if(null!=tosca_UUID && tosca_UUID.length()>0)
+                deleteToscaDeployment(tosca_UUID);
+            else log.warn("Called delete on NULL or empty UUID");
         }        
     }
         
@@ -425,18 +358,16 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
         log.debug("checkMatch:" + checkMatch);
         log.debug("uniqId:" + uniqId);
         String result = "";
-        String ssh_publicIP = "127.0.0.1";
+        String ssh_publicIP = "";
         int ssh_port = 22;
-      //String ssh_username;
-      //String ssh_password;
-        
+              
         // SUbmit works in two stages; first create the Tosca resource
         // from the given toca_template, then submit the job to an 
         // SSH instance belonging to the Tosca resources
         try {
             log.info("Creating a new tosca resource, please wait ...");            
-            log.debug("tosca_template:" + tosca_template);
-
+            log.debug("tosca_template: '" + tosca_template + "'");
+            
             // Create Tosca resource form tosca_template, then wait
             // for its creation and determine an access point with SSH:
             // IP/Port and credentials (username, PublicKey and PrivateKey)
@@ -445,28 +376,25 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             // Now waits until the resource is available
             // A maximum number of attempts will be done
             // until the resource will be made available
-            waitToscaResource();
+            doc = waitToscaResource();
 
             // Once tosca resource is ready, submit to SSH
             // String ssh_publicIP = ToscaResults[0];
             // String ssh_port = toscaResults[1];
-            ssh_publicIP = getDocumentValue(doc, "outputs.node_ip");
-            ssh_port = 22;
-	    String creds = getDocumentValue(doc, "outputs.node_creds");
-	    creds = creds.substring(1, creds.length()-1);
-	    String sCreds[] = creds.split(",");
-	    if(sCreds[0].startsWith("password")){
-              ssh_password=sCreds[0].split("=")[1].trim();
-              ssh_username=sCreds[1].split("=")[1].trim();              
-            } else {
-	      ssh_password=sCreds[1].split("=")[1].trim();
-              ssh_username=sCreds[0].split("=")[1].trim();
-            }
+            String[] sshCredentials = getToscaResourceCredentials(doc);
+            ssh_publicIP = sshCredentials[0];
+            ssh_port     = Integer.parseInt(sshCredentials[1]);
+            ssh_username = sshCredentials[2];
+            ssh_password = sshCredentials[3];
+            
             log.debug(LS+"IP      : '"+ssh_publicIP+"'"+
                       LS+"Port    : '"+ssh_port    +"'"+
                       LS+"username: '"+ssh_username+"'"+
                       LS+"password: '"+ssh_password+"'"
-                     );
+                     );           
+            
+          //ssh_username="root";
+          //ssh_password="IvYAGaRc";
             
             credential.setUsername(ssh_username);
             credential.setPassword(ssh_password);            
@@ -475,23 +403,25 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             );
             sshControlAdaptor.connect(null, ssh_publicIP, ssh_port, null, new HashMap());
         } catch (NotImplementedException ex) {
-            releaseResources();
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
-            releaseResources();
+            releaseToscaResources();
             throw new PermissionDeniedException(ex);
         } catch (AuthorizationFailedException ex) {
-            releaseResources();
+            releaseToscaResources();
             throw new PermissionDeniedException(ex);
         } catch (BadParameterException ex) {
-            releaseResources();
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         } catch (Exception ex) {
-            releaseResources();
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         }
-        result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
-                + "@" + ssh_publicIP + ":" + ssh_port + "#" + tosca_UUID;
+        //result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId)
+        //        + "@" + ssh_publicIP + ":" + ssh_port + "#" + tosca_UUID;
+        result = sshControlAdaptor.submit(jobDesc, checkMatch, uniqId) + "#" + tosca_UUID;                        
+        
         log.debug("submit (end)");
         log.debug("JobId: '"+result+"'");
         this.tosca_id = result;
@@ -505,22 +435,24 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             NoSuccessException {
         StagingTransfer[] result = null;
         log.debug("getInputStagingTransfer (begin)");
+        
+        // Get and retrieve info from JobId
         String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
-        String _publicIP = jobIdInfo[1];
-        int _sshPort = 22;
-        try {
-            Integer.parseInt(jobIdInfo[2]);
-        } catch (NumberFormatException e) {
-            log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
-        }
-        String _nativeJobId = jobIdInfo[3];
+        String sshJobId    = jobIdInfo[1];
+        tosca_UUID         = jobIdInfo[2];
+        String sshPublicIP = jobIdInfo[3];
+        int sshPort        = Integer.parseInt(jobIdInfo[4]);
+        ssh_username       = jobIdInfo[5];
+        ssh_password       = jobIdInfo[6];                        
+        
         try {                        
             sshControlAdaptor.setSecurityCredential(
                     new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-            sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
-            result = sshControlAdaptor.getInputStagingTransfer(_nativeJobId);
-            log.debug("result: " + result);
+            sshControlAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+            result = sshControlAdaptor.getInputStagingTransfer(sshJobId);
+            for(int i=0; i<result.length; i++)
+                log.debug("result("+i+"): '" + result[i]+"'");
         } catch (NotImplementedException ex) {
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
@@ -545,22 +477,26 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             NoSuccessException {
         StagingTransfer[] result = null;
         log.debug("getOutputStagingTransfer (begin)");
+
+        // Get and retrieve info from JobId
         String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
-        String _publicIP = jobIdInfo[1];
-        int _sshPort = 22;
+        String sshJobId    = jobIdInfo[1];
+        tosca_UUID         = jobIdInfo[2];
+        String sshPublicIP = jobIdInfo[3];
+        int sshPort        = Integer.parseInt(jobIdInfo[4]);
+        ssh_username       = jobIdInfo[5];
+        ssh_password       = jobIdInfo[6];                        
+        
         try {
-            Integer.parseInt(jobIdInfo[2]);
-        } catch (NumberFormatException e) {
-            log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
-        }
-        String _nativeJobId = jobIdInfo[3];
-        try {
+            log.debug("ssh_username: '"+ssh_username+"'");
+            log.debug("ssh_password: '"+ssh_password+"'");
             sshControlAdaptor.setSecurityCredential(
                     new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-            sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
-            result = sshControlAdaptor.getOutputStagingTransfer(_nativeJobId);
-            log.debug("result: " + result);
+            sshControlAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+            result = sshControlAdaptor.getOutputStagingTransfer(sshJobId);
+            for(int i=0; i<result.length; i++)
+                log.debug("result("+i+"): '" + result[i]+"'");
         } catch (NotImplementedException ex) {
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
@@ -602,23 +538,24 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             throws PermissionDeniedException,
             TimeoutException,
             NoSuccessException {
-        log.debug("getStagingDirectory (begin)");
-        String result;
+        String result = "";
+        log.debug("getStagingDirectory (begin)");                        
+                
+        // Get and retrieve info from JobId
         String[] jobIdInfo = getInfoFromNativeJobId(nativeJobId);
-        String _publicIP = jobIdInfo[1];
-        int _sshPort = 22;
-        try {
-            Integer.parseInt(jobIdInfo[2]);
-        } catch (NumberFormatException e) {
-            log.warn("Unable to get integer SSH port value from jobId '" + nativeJobId + "';");
-        }
-        String _nativeJobId = jobIdInfo[3];
+        String sshJobId    = jobIdInfo[1];
+        tosca_UUID         = jobIdInfo[2];
+        String sshPublicIP = jobIdInfo[3];
+        int sshPort        = Integer.parseInt(jobIdInfo[4]);
+        ssh_username       = jobIdInfo[5];
+        ssh_password       = jobIdInfo[6]; 
+        
         try {
             sshControlAdaptor.setSecurityCredential(
                     new UserPassSecurityCredential(ssh_username, ssh_password)
             );
-            sshControlAdaptor.connect(null, _publicIP, _sshPort, null, new HashMap());
-            result = sshControlAdaptor.getStagingDirectory(_nativeJobId);
+            sshControlAdaptor.connect(null, sshPublicIP, sshPort, null, new HashMap());
+            result = sshControlAdaptor.getStagingDirectory(sshJobId);
             log.debug("result: " + result);
         } catch (NotImplementedException ex) {
             throw new NoSuccessException(ex);
