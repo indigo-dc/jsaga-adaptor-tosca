@@ -68,8 +68,8 @@ public class RunTest
     private static Logger log = Logger.getLogger(RunTest.class);
     private static final String LS = System.getProperty("line.separator"); 
     
-    // Setup here endpoint and TOSCA template file
-    private String m_EndPoint="tosca://90.147.170.168:31491/orchestrator/deployments";
+    // Setup here endpoint and TOSCA template file    
+    private String m_EndPoint="tosca://90.147.170.168:32101/orchestrator/deployments";
     private String m_Template="/tmp/tosca_template.yaml";
     
     public static void main(String[] args) throws NotImplementedException 
@@ -84,7 +84,7 @@ public class RunTest
         // Submit 1st
         //
         jobId = rt.submitJob();
-        //jobId="[tosca://90.147.170.168:31491/orchestrator/deployments?tosca_template=/tmp/tosca_template.yaml]-[6d9a4630-d436-4d03-991d-99233f8762cc#d3338dcf-b7a9-4517-8876-59af9dd140a2]";
+        //jobId="[tosca://90.147.170.168:32101/orchestrator/deployments?tosca_template=/tmp/tosca_template.yaml]-[d9d95a49-70c0-449f-99b0-a7f07d461993#13fbf5c9-fe85-45ab-8035-06f41ece4182]";
 
         //
         // Now check status
