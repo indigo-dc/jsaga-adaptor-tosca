@@ -69,7 +69,7 @@ public class RunTest
     private static final String LS = System.getProperty("line.separator"); 
     
     // Setup here endpoint and TOSCA template file    
-    private String m_EndPoint="tosca://90.147.170.168:32101/orchestrator/deployments";
+    private String m_EndPoint="tosca://90.147.170.168:31491/orchestrator/deployments";
     private String m_Template="/tmp/tosca_template.yaml";
     
     public static void main(String[] args) throws NotImplementedException 

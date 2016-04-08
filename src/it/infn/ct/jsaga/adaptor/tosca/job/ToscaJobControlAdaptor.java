@@ -454,12 +454,16 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             for(int i=0; i<result.length; i++)
                 log.debug("result("+i+"): '" + result[i]+"'");
         } catch (NotImplementedException ex) {
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
+            releaseToscaResources();
             throw new PermissionDeniedException(ex);
         } catch (AuthorizationFailedException ex) {
+            releaseToscaResources();
             throw new PermissionDeniedException(ex);
         } catch (BadParameterException ex) {
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         }
         // View result
@@ -498,12 +502,16 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             for(int i=0; i<result.length; i++)
                 log.debug("result("+i+"): '" + result[i]+"'");
         } catch (NotImplementedException ex) {
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         } catch (AuthenticationFailedException ex) {
+            releaseToscaResources();
             throw new PermissionDeniedException(ex);
         } catch (AuthorizationFailedException ex) {
+            releaseToscaResources();
             throw new PermissionDeniedException(ex);
         } catch (BadParameterException ex) {
+            releaseToscaResources();
             throw new NoSuccessException(ex);
         }
         // View result
