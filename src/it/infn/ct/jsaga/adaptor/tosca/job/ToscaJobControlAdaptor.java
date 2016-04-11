@@ -91,7 +91,11 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
 
     protected String tosca_id = null;
     private String action = "";
-    private String tosca_template = "";           
+    private String tosca_template = "";  
+    private String wait_ms = "";
+    private String max_waits = "";
+    int wait_ms_val = 30000;         // wait_ms value
+    int max_waits_val = 20;       // max_waits value
     
     @Override
     public void connect(String userInfo, String host, int port, String basePath, Map attributes)
@@ -105,7 +109,22 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
 
         log.debug("Connect (begin)");
 
-        tosca_template = (String) attributes.get(TOSCA_TEMPLATE);
+        // Get endpoint parameters
+        tosca_template = (String) attributes.get(TOSCA_TEMPLATE);        
+        wait_ms = (String) attributes.get(TOSCA_WAITMS);
+        if(null != wait_ms && wait_ms.length() > 0) 
+            try {
+                wait_ms_val = Integer.parseInt(wait_ms);
+            } catch(NumberFormatException nfe) {
+                log.warn("Invalid wait_ms value: '"+wait_ms+"'");
+            }
+        max_waits = (String) attributes.get(TOSCA_MAXWAITS);                        
+        if(null != max_waits && max_waits.length() > 0) 
+            try {
+                max_waits_val = Integer.parseInt(max_waits);
+            } catch(NumberFormatException nfe) {
+                log.warn("Invalid wait_ms value: '"+max_waits+"'");
+            }
 
         // View parameters
         log.debug("userInfo      : '" + userInfo + "'" + LS
@@ -114,7 +133,10 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                 + "basePath      : '" + basePath + "'" + LS
                 + "attributes    : '" + attributes + "'" + LS
                 + "action        : '" + action + "'" + LS
-                + "tosca_template: '" + tosca_template + "'");
+                + "tosca_template: '" + tosca_template + "'" +LS
+                + "wait_ms       : '" + wait_ms + "'" +LS
+                + "max_waits     : '" + max_waits + "'" 
+        );
 
         try {
             endpoint = new URL("http", host, port, basePath);
@@ -295,14 +317,14 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                    BadResource,
                    TimeoutException {
          int attempts = 0;
-         int max_attempts = 20;
-         int wait_step= 30000;
+         int max_attempts = wait_ms_val;
+         int wait_step= max_waits_val;
          String toscaStatus = "CREATE_IN_PROGRESS";
          String toscaDeployment="";
          
          for(attempts=0;
              tosca_UUID != null 
-          && attempts < max_attempts-1 
+          && attempts < max_attempts 
           && toscaStatus.equals("CREATE_IN_PROGRESS");
              attempts++) {
              try {

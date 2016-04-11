@@ -68,6 +68,8 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
     protected static final String USER_NAME = "user.name";
     protected static final String TOKEN = "token";
     protected static final String TOSCA_TEMPLATE = "tosca_template";
+    protected static final String TOSCA_WAITMS = "wait_ms";
+    protected static final String TOSCA_MAXWAITS = "max_waits";
 
     public static final String LS = System.getProperty("line.separator");
     private static final Logger log
