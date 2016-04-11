@@ -317,8 +317,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
                    BadResource,
                    TimeoutException {
          int attempts = 0;
-         int max_attempts = wait_ms_val;
-         int wait_step= max_waits_val;
+         int max_attempts = max_waits_val;
+         int wait_step= wait_ms_val;
          String toscaStatus = "CREATE_IN_PROGRESS";
          String toscaDeployment="";
          
