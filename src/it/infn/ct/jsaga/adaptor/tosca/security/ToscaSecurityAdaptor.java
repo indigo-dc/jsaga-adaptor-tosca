@@ -62,7 +62,7 @@ public class ToscaSecurityAdaptor implements ExpirableSecurityAdaptor {
     @Override
     public Usage getUsage() {
         return new UAnd.Builder()
-                .and(new SSHSecurityAdaptor().getUsage())
+              //.and(new SSHSecurityAdaptor().getUsage())
                 .build();
     }
 
