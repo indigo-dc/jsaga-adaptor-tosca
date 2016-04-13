@@ -287,12 +287,12 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
         log.debug("creds: '" + creds + "'");
         creds = creds.substring(1, creds.length() - 1);        
         String sCreds[] = creds.split(",");
-        if (sCreds[0].startsWith("password")) {
-            ssh_password = sCreds[0].split("=")[1].trim();
-            ssh_username = sCreds[1].split("=")[1].trim();
-        } else {
+        if (sCreds[0].startsWith("user")) {
             ssh_password = sCreds[1].split("=")[1].trim();
             ssh_username = sCreds[0].split("=")[1].trim();
+        } else {
+            ssh_password = sCreds[0].split("=")[1].trim();
+            ssh_username = sCreds[1].split("=")[1].trim();            
         }
         log.debug("ssh_username: '"+ssh_username+"'");
         log.debug("ssh_password: '"+ssh_password+"'");

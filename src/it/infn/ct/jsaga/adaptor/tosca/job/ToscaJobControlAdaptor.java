@@ -338,7 +338,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
              try {
                  log.debug("Deployment: " + toscaDeployment);
                  toscaStatus = getDocumentValue(toscaDeployment, "status");
-                 log.debug("Deplyment " + tosca_UUID + " has status '" + toscaStatus + "'");
+                 log.debug("Deployment " + tosca_UUID + " has status '" + toscaStatus + "'");
              } catch (ParseException ex) {
                  log.warn("Impossible to parse the tosca deployment json: '"+toscaDeployment+"'");
              }
