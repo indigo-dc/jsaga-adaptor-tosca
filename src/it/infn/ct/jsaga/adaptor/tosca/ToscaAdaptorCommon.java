@@ -283,17 +283,8 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
         String ssh_publicIP = getDocumentValue(doc, "outputs.node_ip");
         log.debug("IP: '" + ssh_publicIP + "'");
         int ssh_port = 22; // Not yet available, maybe in next versions
-        String creds = getDocumentValue(doc, "outputs.node_creds");
-        log.debug("creds: '" + creds + "'");
-        creds = creds.substring(1, creds.length() - 1);        
-        String sCreds[] = creds.split(",");
-        if (sCreds[0].startsWith("user")) {
-            ssh_password = sCreds[1].split("=")[1].trim();
-            ssh_username = sCreds[0].split("=")[1].trim();
-        } else {
-            ssh_password = sCreds[0].split("=")[1].trim();
-            ssh_username = sCreds[1].split("=")[1].trim();            
-        }
+        String ssh_username = getDocumentValue(doc, "outputs.node_creds.user");
+        String ssh_password = getDocumentValue(doc, "outputs.node_creds.token");
         log.debug("ssh_username: '"+ssh_username+"'");
         log.debug("ssh_password: '"+ssh_password+"'");
         
