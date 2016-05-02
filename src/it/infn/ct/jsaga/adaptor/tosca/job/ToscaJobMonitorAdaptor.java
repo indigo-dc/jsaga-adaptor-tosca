@@ -91,7 +91,10 @@ public class ToscaJobMonitorAdaptor extends ToscaAdaptorCommon
                      BadParameterException, 
                      TimeoutException, 
                      NoSuccessException 
-  {      
+  { 
+    // Get reference to JobMonitorAdaptor for AdaptorCommon
+    jobMonitor = this;
+
     super.connect(userInfo, host, port, basePath, attributes);    
   }
     

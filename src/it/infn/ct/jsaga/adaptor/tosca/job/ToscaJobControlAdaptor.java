@@ -108,6 +108,9 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             NoSuccessException {
 
         log.debug("Connect (begin)");
+        
+        // Get reference to JobControlAdaptor for AdaptorCommon
+        jobControl = this;
 
         // Get endpoint parameters
         tosca_template = (String) attributes.get(TOSCA_TEMPLATE);        
@@ -211,6 +214,8 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
             throw new PermissionDeniedException(ex);
         } catch (BadParameterException ex) {
             throw new NoSuccessException(ex);
+        } finally {
+            this.releaseToscaResources();
         }
         log.debug("cancel (end)");
     }        
@@ -357,7 +362,7 @@ public class ToscaJobControlAdaptor extends ToscaAdaptorCommon
     /**
      * Free all allocated resources
      */
-    private void releaseToscaResources() {
+    protected void releaseToscaResources() {
         if(tosca_UUID != null) {
             log.debug("Releasing Tosca resource '"+tosca_UUID+"'");
             // Release of Tosca resource not yet implemented            

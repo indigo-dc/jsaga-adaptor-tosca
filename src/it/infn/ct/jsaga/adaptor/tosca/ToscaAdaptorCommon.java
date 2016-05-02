@@ -30,6 +30,8 @@ import fr.in2p3.jsaga.adaptor.base.defaults.Default;
 import fr.in2p3.jsaga.adaptor.base.usage.UAnd;
 import fr.in2p3.jsaga.adaptor.base.usage.Usage;
 import fr.in2p3.jsaga.adaptor.security.SecurityCredential;
+import it.infn.ct.jsaga.adaptor.tosca.job.ToscaJobControlAdaptor;
+import it.infn.ct.jsaga.adaptor.tosca.job.ToscaJobMonitorAdaptor;
 
 import org.ogf.saga.error.*;
 
@@ -61,6 +63,8 @@ import org.json.simple.parser.ParseException;
 public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
 
     protected ToscaSecurityCredential credential = null;
+    protected ToscaJobControlAdaptor jobControl = null;
+    protected ToscaJobMonitorAdaptor jobMonitor = null;
 
     protected String sshHost = null;
     protected static final String AUTH = "auth";
@@ -149,7 +153,7 @@ public class ToscaAdaptorCommon extends Object implements ClientAdaptor {
     }
 
     @Override
-    public void disconnect() throws NoSuccessException {
+    public void disconnect() throws NoSuccessException {        
     }
 
     @Override
