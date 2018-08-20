@@ -2,7 +2,7 @@
 [![Documentation Status](https://readthedocs.org/projects/csgf/badge/?version=latest)](http://csgf.readthedocs.org)
 [![License](https://img.shields.io/github/license/csgf/jsaga-adaptor-rocci.svg?style?flat)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-# jsaga-adaptor-tosca
+# (DEPRECATED) jsaga-adaptor-tosca
 
 <h2>Requirements</h2>
 - JDK 6+
